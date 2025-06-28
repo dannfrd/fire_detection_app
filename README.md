@@ -66,16 +66,6 @@ flutter build apk --release
 flutter build appbundle --release
 ```
 
-### iOS
-```bash
-flutter build ios --release
-```
-
-### Web
-```bash
-flutter build web --release
-```
-
 ## 📁 Project Structure
 
 ```
