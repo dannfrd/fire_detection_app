@@ -40,6 +40,7 @@ dependencies:
   geolocator: ^14.0.1
   flutter_lints: ^6.0.0
   google_maps_flutter: ^2.12.3
+  mqtt_client: ^10.10.0
 
 dev_dependencies:
   flutter_test:
