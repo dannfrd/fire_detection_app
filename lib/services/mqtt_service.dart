@@ -22,7 +22,6 @@ class MqttService {
   final String _smokeTopic = 'kelompok4/smoke';
   final String _apiTopic = 'kelompok4/api';
   final String _locationTopic = 'kelompok4/location';
-  final String _allDataTopic = 'kelompok4/all';
 
   // Streams
   final _sensorDataStreamController = StreamController<SensorData>.broadcast();
