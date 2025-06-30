@@ -6,12 +6,14 @@ class SensorCard extends StatelessWidget {
   final String title;
   final bool isActive;
   final IconData icon;
+  final String? subtitle;
 
   const SensorCard({
     super.key,
     required this.title,
     required this.isActive,
     required this.icon,
+    this.subtitle,
   });
 
   @override
@@ -119,6 +121,19 @@ class SensorCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  
+                  // Subtitle (if provided)
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      subtitle!,
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
