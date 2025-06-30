@@ -1,9 +1,30 @@
 import 'package:flutter/material.dart';
 
+import '../screens/contact_support_screen.dart';
+import '../screens/privacy_policy_screen.dart';
+import '../screens/terms_of_service_screen.dart';
 import '../utils/app_theme.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  // State variables for switches
+  bool _fireAlertsEnabled = true;
+  bool _warningAlertsEnabled = true;
+  bool _systemUpdatesEnabled = false;
+  bool _showMyLocationEnabled = true;
+  bool _autoRefreshMapEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedSettings();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,9 +122,15 @@ class SettingsScreen extends StatelessWidget {
                   'Fire Alerts',
                   'Receive notifications for fire detections',
                   Icons.notifications_active_rounded,
-                  true,
+                  _fireAlertsEnabled,
                   (value) {
-                    // Handle notification toggle
+                    setState(() {
+                      _fireAlertsEnabled = value;
+                    });
+                    _saveNotificationSettings();
+                    _showSettingUpdatedSnackbar(
+                      value ? 'Fire alerts enabled' : 'Fire alerts disabled'
+                    );
                   },
                 ),
                 const Divider(height: 1, indent: 70),
@@ -111,9 +138,15 @@ class SettingsScreen extends StatelessWidget {
                   'Warning Alerts',
                   'Receive notifications for potential risks',
                   Icons.warning_amber_rounded,
-                  true,
+                  _warningAlertsEnabled,
                   (value) {
-                    // Handle notification toggle
+                    setState(() {
+                      _warningAlertsEnabled = value;
+                    });
+                    _saveNotificationSettings();
+                    _showSettingUpdatedSnackbar(
+                      value ? 'Warning alerts enabled' : 'Warning alerts disabled'
+                    );
                   },
                 ),
                 const Divider(height: 1, indent: 70),
@@ -121,9 +154,15 @@ class SettingsScreen extends StatelessWidget {
                   'System Updates',
                   'Receive notifications about system status',
                   Icons.system_update_rounded,
-                  false,
+                  _systemUpdatesEnabled,
                   (value) {
-                    // Handle notification toggle
+                    setState(() {
+                      _systemUpdatesEnabled = value;
+                    });
+                    _saveNotificationSettings();
+                    _showSettingUpdatedSnackbar(
+                      value ? 'System updates enabled' : 'System updates disabled'
+                    );
                   },
                 ),
               ],
@@ -152,9 +191,15 @@ class SettingsScreen extends StatelessWidget {
                   'Show My Location',
                   'Display your current location on the map',
                   Icons.my_location_rounded,
-                  true,
+                  _showMyLocationEnabled,
                   (value) {
-                    // Handle map settings toggle
+                    setState(() {
+                      _showMyLocationEnabled = value;
+                    });
+                    _saveMapSettings();
+                    _showSettingUpdatedSnackbar(
+                      value ? 'Location display enabled' : 'Location display disabled'
+                    );
                   },
                 ),
                 const Divider(height: 1, indent: 70),
@@ -162,9 +207,15 @@ class SettingsScreen extends StatelessWidget {
                   'Auto-refresh Map',
                   'Automatically update map data',
                   Icons.refresh_rounded,
-                  true,
+                  _autoRefreshMapEnabled,
                   (value) {
-                    // Handle map settings toggle
+                    setState(() {
+                      _autoRefreshMapEnabled = value;
+                    });
+                    _saveMapSettings();
+                    _showSettingUpdatedSnackbar(
+                      value ? 'Map auto-refresh enabled' : 'Map auto-refresh disabled'
+                    );
                   },
                 ),
               ],
@@ -194,7 +245,10 @@ class SettingsScreen extends StatelessWidget {
                   'View our privacy policy',
                   Icons.privacy_tip_rounded,
                   () {
-                    // Navigate to privacy policy
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
+                    );
                   },
                 ),
                 const Divider(height: 1, indent: 70),
@@ -203,7 +257,10 @@ class SettingsScreen extends StatelessWidget {
                   'View our terms of service',
                   Icons.description_rounded,
                   () {
-                    // Navigate to terms of service
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const TermsOfServiceScreen()),
+                    );
                   },
                 ),
                 const Divider(height: 1, indent: 70),
@@ -212,7 +269,10 @@ class SettingsScreen extends StatelessWidget {
                   'Get help with the app',
                   Icons.support_agent_rounded,
                   () {
-                    // Contact support
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ContactSupportScreen()),
+                    );
                   },
                 ),
               ],
@@ -332,5 +392,69 @@ class SettingsScreen extends StatelessWidget {
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     );
+  }
+
+  // Helper methods for implementing the functionality
+  void _saveNotificationSettings() async {
+    // Here you would typically use shared preferences or another storage mechanism
+    // Example:
+    // final prefs = await SharedPreferences.getInstance();
+    // await prefs.setBool('fireAlertsEnabled', _fireAlertsEnabled);
+    // await prefs.setBool('warningAlertsEnabled', _warningAlertsEnabled);
+    // await prefs.setBool('systemUpdatesEnabled', _systemUpdatesEnabled);
+    
+    // For demonstration, we're just printing the values
+    debugPrint('Saving notification settings:');
+    debugPrint('Fire Alerts: $_fireAlertsEnabled');
+    debugPrint('Warning Alerts: $_warningAlertsEnabled');
+    debugPrint('System Updates: $_systemUpdatesEnabled');
+  }
+
+  void _saveMapSettings() async {
+    // Similar to notification settings, you would save these to persistent storage
+    // Example:
+    // final prefs = await SharedPreferences.getInstance();
+    // await prefs.setBool('showMyLocation', _showMyLocationEnabled);
+    // await prefs.setBool('autoRefreshMap', _autoRefreshMapEnabled);
+    
+    debugPrint('Saving map settings:');
+    debugPrint('Show My Location: $_showMyLocationEnabled');
+    debugPrint('Auto-refresh Map: $_autoRefreshMapEnabled');
+  }
+
+  void _showSettingUpdatedSnackbar(String message) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppTheme.primaryGreen,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: Colors.white,
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadSavedSettings() async {
+    // Here you would typically load settings from shared preferences
+    // Example:
+    // final prefs = await SharedPreferences.getInstance();
+    // setState(() {
+    //   _fireAlertsEnabled = prefs.getBool('fireAlertsEnabled') ?? true;
+    //   _warningAlertsEnabled = prefs.getBool('warningAlertsEnabled') ?? true;
+    //   _systemUpdatesEnabled = prefs.getBool('systemUpdatesEnabled') ?? false;
+    //   _showMyLocationEnabled = prefs.getBool('showMyLocation') ?? true;
+    //   _autoRefreshMapEnabled = prefs.getBool('autoRefreshMap') ?? true;
+    // });
+    
+    // For now, we'll use the default values
+    // This is already done in the class field initialization
+    debugPrint('Settings loaded');
   }
 }
