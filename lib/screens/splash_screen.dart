@@ -51,11 +51,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             var end = Offset.zero;
             var curve = Curves.ease;
             
+            // Using tween to create a slide transition
             var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
             
             return FadeTransition(
               opacity: animation,
-              child: child,
+              child: SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              ),
             );
           },
           transitionDuration: const Duration(milliseconds: 500),
