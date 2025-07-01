@@ -53,7 +53,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 const SizedBox(height: 24),
                 _buildSectionTitle('1. Introduction'),
                 _buildParagraph(
-                  'Welcome to Agrotech Fire Detection. We respect your privacy and are committed to protecting your personal data. This Privacy Policy explains how we collect, use, and safeguard your information when you use our application.'
+                  'Welcome to Agrotech Fire Detection. This application was developed by our team as part of an Internet of Things (IoT) project. We respect your privacy and are committed to protecting your personal data. This Privacy Policy explains how we collect, use, and safeguard your information when you use our application.'
                 ),
                 
                 const SizedBox(height: 16),
@@ -103,14 +103,45 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 _buildSectionTitle('7. Contact Us'),
                 _buildParagraph(
-                  'If you have any questions about this Privacy Policy, please contact us at:'
+                  'If you have any questions about this Privacy Policy, please contact our development team:'
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Email: privacy@agrotech-firedetection.com\nPhone: +1-123-456-7890',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textPrimary,
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryGreen.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.group_rounded,
+                            color: AppTheme.primaryGreen,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Development Team:',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildEmailContactItem('codewithwan@gmail.com'),
+                      _buildEmailContactItem('muhammadzaky034@gmail.com'),
+                      _buildEmailContactItem('ardanferdiansah03@gmail.com'),
+                      _buildEmailContactItem('rafiiqbal2407@gmail.com'),
+                      _buildEmailContactItem('tsabitahhilyatul@gmail.com'),
+                      _buildEmailContactItem('ayeshacha177@gmail.com'),
+                    ],
                   ),
                 ),
               ],
@@ -171,6 +202,32 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 fontSize: 14,
                 color: AppTheme.textPrimary,
                 height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmailContactItem(String email) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.email_outlined,
+            size: 16,
+            color: AppTheme.primaryGreen,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              email,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppTheme.primaryGreen,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),

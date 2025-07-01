@@ -6,6 +6,8 @@ A Flutter-based mobile application for real-time fire detection and monitoring u
 
 This mobile application is designed to work in conjunction with ESP32 hardware sensors to provide real-time fire detection capabilities. The app receives sensor data and provides immediate alerts and monitoring features for fire safety management.
 
+**Academic Project**: This application was developed as part of an Internet of Things (IoT) course project, focusing on practical implementation of IoT concepts in fire detection and monitoring systems.
+
 ## ✨ Features
 
 - 🔥 Real-time fire detection monitoring
@@ -110,19 +112,34 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👥 Authors
 
-- **Your Name** - *Initial work*
+**Development Team - Internet of Things Project**
+
+- **codewithwan** - *codewithwan@gmail.com*
+- **Muhammad Zaky** - *muhammadzaky034@gmail.com*
+- **Ardan Ferdiansah** - *ardanferdiansah03@gmail.com*
+- **Rafi Iqbal** - *rafiiqbal2407@gmail.com*
+- **Tsabitah Hilyatul** - *tsabitahhilyatul@gmail.com*
+- **Ayesha Cha** - *ayeshacha177@gmail.com*
 
 ## 🙏 Acknowledgments
 
 - Flutter team for the amazing framework
 - ESP32 community for hardware support
 - Fire safety organizations for guidance
+- Our IoT course instructors for guidance and support
+- Academic institution for providing learning opportunities
 
 ## 📞 Support
 
-If you have any questions or need help, please:
-- Open an issue on GitHub
-- Contact: [your-email@example.com]
+If you have any questions or need help, please contact our development team:
+
+**Development Team Contact:**
+- codewithwan@gmail.com
+- muhammadzaky034@gmail.com
+- ardanferdiansah03@gmail.com
+- rafiiqbal2407@gmail.com
+- tsabitahhilyatul@gmail.com
+- ayeshacha177@gmail.com
 
 ## 🔄 Version History
 

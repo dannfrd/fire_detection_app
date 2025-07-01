@@ -86,7 +86,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'We\'re Here to Help',
+                              'Contact Our Team',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -95,7 +95,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
                             ),
                             SizedBox(height: 4),
                             Text(
-                              'Our support team is available to assist you',
+                              'Get in touch with our development team',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: AppTheme.textSecondary,
@@ -109,22 +109,44 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
                   const SizedBox(height: 16),
                   const Divider(),
                   const SizedBox(height: 16),
-                  _buildContactInfoItem(
-                    Icons.email_outlined,
-                    'Email Us',
-                    'support@agrotech-firedetection.com',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildContactInfoItem(
-                    Icons.phone_outlined,
-                    'Call Us',
-                    '+1-123-456-7890',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildContactInfoItem(
-                    Icons.access_time,
-                    'Support Hours',
-                    'Monday-Friday, 9AM-5PM',
+                  // Team Members Email List
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryGreen.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.group_rounded,
+                              color: AppTheme.primaryGreen,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Development Team Contact:',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _buildEmailItem('codewithwan@gmail.com'),
+                        _buildEmailItem('muhammadzaky034@gmail.com'),
+                        _buildEmailItem('ardanferdiansah03@gmail.com'),
+                        _buildEmailItem('rafiiqbal2407@gmail.com'),
+                        _buildEmailItem('tsabitahhilyatul@gmail.com'),
+                        _buildEmailItem('ayeshacha177@gmail.com'),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -494,5 +516,31 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
         });
       });
     }
+  }
+
+  Widget _buildEmailItem(String email) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.email_outlined,
+            size: 16,
+            color: AppTheme.primaryGreen,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              email,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppTheme.primaryGreen,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
