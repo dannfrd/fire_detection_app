@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/fire_detection_provider.dart';
@@ -13,12 +14,10 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  Set<Marker> _markers = {};
+  List<Marker> _markers = [];
+  final MapController _mapController = MapController();
 
-  static const CameraPosition _initialPosition = CameraPosition(
-    target: LatLng(-7.7956, 110.3695), // Yogyakarta, Indonesia
-    zoom: 14,
-  );
+  static const LatLng _initialPosition = LatLng(-7.7956, 110.3695); // Yogyakarta, Indonesia
 
   @override
   Widget build(BuildContext context) {
@@ -43,18 +42,21 @@ class _MapScreenState extends State<MapScreen> {
 
           return Stack(
             children: [
-              GoogleMap(
-                initialCameraPosition: _initialPosition,
-                markers: _markers,
-                onMapCreated: (GoogleMapController controller) {
-                  // Map controller can be used for future features
-                },
-                myLocationEnabled: true,
-                myLocationButtonEnabled: true,
-                mapToolbarEnabled: true,
-                compassEnabled: true,
-                mapType: MapType.normal,
-                zoomControlsEnabled: false, // We'll add our own fab instead
+              FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: _initialPosition,
+                  initialZoom: 14.0,
+                  keepAlive: true,
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.example.fire_detections_app',
+                    subdomains: const ['a', 'b', 'c'],
+                  ),
+                  MarkerLayer(markers: _markers),
+                ],
               ),
               if (provider.isLoading)
                 Container(
@@ -117,9 +119,13 @@ class _MapScreenState extends State<MapScreen> {
                   foregroundColor: Colors.white,
                   elevation: 4,
                   onPressed: () {
-                    // You could center the map on current position or most recent fire
+                    // Center the map on current position or most recent fire
                     if (provider.fireLocations.isNotEmpty) {
-                      // Future enhancement: add map controller to animate to position
+                      final latestLocation = provider.fireLocations.first;
+                      _mapController.move(
+                        LatLng(latestLocation.latitude, latestLocation.longitude),
+                        15.0,
+                      );
                     }
                   },
                   child: const Icon(Icons.my_location_rounded),
@@ -135,21 +141,43 @@ class _MapScreenState extends State<MapScreen> {
   void _updateMarkers(List<dynamic> fireLocations) {
     _markers = fireLocations.map((location) {
       return Marker(
-        markerId: MarkerId('fire_${location.timestamp.millisecondsSinceEpoch}'),
-        position: LatLng(location.latitude, location.longitude),
-        infoWindow: InfoWindow(
-          title: 'Fire Detection',
-          snippet:
-              'Severity: ${location.severity}\nTime: ${location.timestamp.toString().substring(0, 16)}',
-        ),
-        icon: BitmapDescriptor.defaultMarkerWithHue(
-          location.severity == 'Critical'
-              ? BitmapDescriptor.hueRed
-              : location.severity == 'Warning'
-                  ? BitmapDescriptor.hueOrange
-                  : BitmapDescriptor.hueGreen,
+        width: 40.0,
+        height: 40.0,
+        point: LatLng(location.latitude, location.longitude),
+        child: GestureDetector(
+          onTap: () {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Fire Detection'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Severity: ${location.severity}'),
+                    Text('Time: ${location.timestamp.toString().substring(0, 16)}'),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+            );
+          },
+          child: Icon(
+            Icons.local_fire_department_rounded,
+            color: location.severity == 'Critical'
+                ? Colors.red
+                : location.severity == 'Warning'
+                    ? Colors.orange
+                    : Colors.green,
+            size: 40.0,
+          ),
         ),
       );
-    }).toSet();
+    }).toList();
   }
 }
