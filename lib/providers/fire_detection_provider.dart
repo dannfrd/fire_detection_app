@@ -4,13 +4,14 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../models/sensor_data.dart';
+import '../providers/settings_provider.dart';
 import '../services/api_service.dart';
 import '../services/mqtt_service.dart';
 
 class FireDetectionProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
   final MqttService _mqttService = MqttService();
-  
+
   StreamSubscription? _mqttSubscription;
   Timer? _periodicFetchTimer;
 
@@ -21,6 +22,10 @@ class FireDetectionProvider extends ChangeNotifier {
   String? _error;
   bool _isMqttConnected = false;
 
+  // Alert status
+  AlertLevel _currentAlertLevel = AlertLevel.normal;
+  FireDetectionSettings? _settings;
+
   // Getters
   SensorData? get currentSensorData => _currentSensorData;
   List<SensorData> get sensorHistory => _sensorHistory;
@@ -28,17 +33,27 @@ class FireDetectionProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isMqttConnected => _isMqttConnected;
+  AlertLevel get currentAlertLevel => _currentAlertLevel;
 
   FireDetectionProvider() {
     _initializeServices();
   }
 
+  // Set the settings provider reference
+  void setSettingsProvider(FireDetectionSettings settings) {
+    _settings = settings;
+    // Re-evaluate alert levels if we have sensor data
+    if (_currentSensorData != null) {
+      _evaluateAlertLevels(_currentSensorData!);
+    }
+  }
+
   Future<void> _initializeServices() async {
     _setLoading(true);
-    
+
     // Connect to MQTT
     await _connectToMqtt();
-    
+
     // If no MQTT or as a fallback, use API
     if (!_isMqttConnected) {
       _startPeriodicFetch();
@@ -46,26 +61,49 @@ class FireDetectionProvider extends ChangeNotifier {
       // Skip API calls if MQTT is connected to avoid HTML error
       print('MQTT connected, skipping API calls');
     }
-    
+
     _setLoading(false);
   }
 
   Future<void> _connectToMqtt() async {
     try {
       print('Attempting to connect to MQTT...');
-      _isMqttConnected = await _mqttService.connect();
-      
+
+      // First try - with a timeout to prevent blocking too long
+      Future<bool> connectionFuture = _mqttService.connect();
+      _isMqttConnected = await connectionFuture.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          print('MQTT connection timed out after 10 seconds');
+          return false;
+        },
+      );
+
       if (_isMqttConnected) {
         print('Successfully connected to MQTT broker');
-        
+
         // Set up the MQTT data stream subscription
         _setupMqttSubscription();
-        
+
         // Periodically check MQTT connection
         _startMqttConnectionChecker();
       } else {
         print('Failed to connect to MQTT broker');
         _error = 'Could not connect to MQTT server. Using API fallback.';
+
+        // Try one more time after a short delay
+        Future.delayed(const Duration(seconds: 2), () async {
+          print('Retrying MQTT connection...');
+          _isMqttConnected = await _mqttService.connect();
+          if (_isMqttConnected) {
+            print('Successfully connected to MQTT on retry');
+            _error = null;
+            _setupMqttSubscription();
+            _startMqttConnectionChecker();
+            notifyListeners();
+          }
+        });
+
         notifyListeners();
       }
     } catch (e) {
@@ -79,7 +117,7 @@ class FireDetectionProvider extends ChangeNotifier {
   void _setupMqttSubscription() {
     // Cancel any existing subscription first
     _mqttSubscription?.cancel();
-    
+
     // Listen to sensor data stream
     _mqttSubscription = _mqttService.sensorDataStream.listen(
       (sensorData) {
@@ -90,26 +128,30 @@ class FireDetectionProvider extends ChangeNotifier {
         print('Temperature: ${sensorData.temperature}°C');
         print('Timestamp: ${sensorData.timestamp}');
         print('============================');
-        
+
         _currentSensorData = sensorData;
-        
+
+        // Evaluate against thresholds
+        _evaluateAlertLevels(sensorData);
+
         // Add to history if it's a new reading
-        if (_sensorHistory.isEmpty || 
+        if (_sensorHistory.isEmpty ||
             _sensorHistory.first.timestamp != sensorData.timestamp) {
           _sensorHistory.insert(0, sensorData);
-          
+
           // Keep history to a reasonable size
           if (_sensorHistory.length > 50) {
             _sensorHistory = _sensorHistory.sublist(0, 50);
           }
         }
-        
+
         // Check if fire is detected and update fire locations
-        if (sensorData.isFireDetected && sensorData.latitude != null && 
+        if (sensorData.isFireDetected &&
+            sensorData.latitude != null &&
             sensorData.longitude != null) {
           _updateFireLocations(sensorData);
         }
-        
+
         // Clear any previous errors
         _error = null;
         notifyListeners();
@@ -126,15 +168,16 @@ class FireDetectionProvider extends ChangeNotifier {
       },
     );
   }
-  
+
   // Add a connection checker that periodically verifies MQTT connection
   Timer? _mqttConnectionCheckTimer;
-  
+
   void _startMqttConnectionChecker() {
     _mqttConnectionCheckTimer?.cancel();
-    _mqttConnectionCheckTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
+    _mqttConnectionCheckTimer =
+        Timer.periodic(const Duration(seconds: 30), (timer) async {
       final isConnected = _mqttService.isConnected;
-      
+
       if (!isConnected && _isMqttConnected) {
         print('MQTT connection lost, attempting to reconnect...');
         _reconnectToMqtt();
@@ -145,13 +188,13 @@ class FireDetectionProvider extends ChangeNotifier {
       }
     });
   }
-  
+
   Future<void> _reconnectToMqtt() async {
     try {
       print('Attempting to reconnect to MQTT...');
       final wasConnected = _isMqttConnected;
       _isMqttConnected = await _mqttService.ensureConnected();
-      
+
       if (_isMqttConnected) {
         print('Successfully reconnected to MQTT');
         if (!wasConnected) {
@@ -188,10 +231,10 @@ class FireDetectionProvider extends ChangeNotifier {
       humidity: sensorData.humidity,
       gasLevel: sensorData.gasLevel,
     );
-    
+
     // Add to locations if not already present
-    if (!_fireLocations.any((loc) => 
-        loc.latitude == newLocation.latitude && 
+    if (!_fireLocations.any((loc) =>
+        loc.latitude == newLocation.latitude &&
         loc.longitude == newLocation.longitude)) {
       _fireLocations.add(newLocation);
       notifyListeners();
@@ -210,6 +253,8 @@ class FireDetectionProvider extends ChangeNotifier {
       final data = await _apiService.getCurrentSensorData();
       if (data != null) {
         _currentSensorData = data;
+        // Evaluate against thresholds
+        _evaluateAlertLevels(data);
         _error = null;
         notifyListeners();
       }
@@ -222,6 +267,7 @@ class FireDetectionProvider extends ChangeNotifier {
       }
     }
   }
+
   void _setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
@@ -230,24 +276,25 @@ class FireDetectionProvider extends ChangeNotifier {
   Future<void> refreshData() async {
     _setLoading(true);
     _error = null;
-    
+
     // First, try to ensure MQTT connection is active
     if (!_isMqttConnected) {
       await _reconnectToMqtt();
     }
-    
+
     if (_isMqttConnected) {
       print('Using MQTT for real-time data');
       // For MQTT, we can publish a request for fresh data
       try {
         _mqttService.publishMessage('kelompok4/commands', 'request_data');
         _mqttService.publishMessage('kelompok4', 'refresh');
-        _mqttService.publishMessage('kelompok4/commands/refresh', 'request_data');
+        _mqttService.publishMessage(
+            'kelompok4/commands/refresh', 'request_data');
         print('Published refresh requests to MQTT');
       } catch (e) {
         print('Error publishing refresh command: $e');
       }
-      
+
       // Skip API calls when MQTT is connected to avoid HTML errors
       print('Skipping API calls since MQTT is connected');
     } else {
@@ -257,33 +304,37 @@ class FireDetectionProvider extends ChangeNotifier {
         await _fetchCurrentSensorData();
       } catch (e) {
         print('API error (expected if server is offline): $e');
-        _error = 'MQTT disconnected and API server unavailable. Using simulation mode.';
+        _error =
+            'MQTT disconnected and API server unavailable. Using simulation mode.';
       }
     }
-    
+
     _setLoading(false);
   }
 
   // For testing: simulate receiving MQTT data with more realistic scenarios
   void simulateMqttData() {
     final random = Random();
-    
+
     // Generate more realistic sensor values matching ESP32 ADC range (0-4095)
     // MQ-135 typically shows values around 100-300 in clean air, 1000+ for gas detection
     final baseGasLevel = _currentSensorData?.gasLevel ?? 800;
     // Generate values between -400 and +400 from base, with ESP32 ADC range in mind
-    final newGasLevel = (baseGasLevel + (random.nextInt(800) - 400)).clamp(100, 4000);
-    
+    final newGasLevel =
+        (baseGasLevel + (random.nextInt(800) - 400)).clamp(100, 4000);
+
     final baseTemp = _currentSensorData?.temperature ?? 28.0;
-    final newTemp = (baseTemp + (random.nextDouble() * 6 - 3)).clamp(15.0, 45.0);
-    
+    final newTemp =
+        (baseTemp + (random.nextDouble() * 6 - 3)).clamp(15.0, 45.0);
+
     final baseHumidity = _currentSensorData?.humidity ?? 65.0;
-    final newHumidity = (baseHumidity + (random.nextDouble() * 10 - 5)).clamp(30.0, 90.0);
-    
+    final newHumidity =
+        (baseHumidity + (random.nextDouble() * 10 - 5)).clamp(30.0, 90.0);
+
     // Simulate different scenarios based on gas level - adjusted for ESP32 ADC values
     bool smokeDetected = false;
     bool flameDetected = false;
-    
+
     if (newGasLevel > 2000) {
       // High gas level scenario - ESP32 ADC values are higher
       smokeDetected = random.nextBool();
@@ -292,13 +343,14 @@ class FireDetectionProvider extends ChangeNotifier {
       // Medium gas level scenario
       smokeDetected = random.nextDouble() < 0.3; // 30% chance
     }
-    
+
     // High temperature can also trigger alerts
     if (newTemp > 35) {
       smokeDetected = smokeDetected || (random.nextDouble() < 0.4);
-      flameDetected = flameDetected || (newTemp > 40 && random.nextDouble() < 0.3);
+      flameDetected =
+          flameDetected || (newTemp > 40 && random.nextDouble() < 0.3);
     }
-    
+
     final mockData = SensorData(
       id: DateTime.now().millisecondsSinceEpoch,
       smokeDetected: smokeDetected,
@@ -310,29 +362,64 @@ class FireDetectionProvider extends ChangeNotifier {
       humidity: newHumidity,
       gasLevel: newGasLevel,
     );
-    
+
     // Process this mock data as if it came from MQTT
     _currentSensorData = mockData;
-    
-    if (_sensorHistory.isEmpty || 
+
+    // Evaluate against thresholds
+    _evaluateAlertLevels(mockData);
+
+    if (_sensorHistory.isEmpty ||
         _sensorHistory.first.timestamp != mockData.timestamp) {
       _sensorHistory.insert(0, mockData);
-      
+
       if (_sensorHistory.length > 50) {
         _sensorHistory = _sensorHistory.sublist(0, 50);
       }
     }
-    
+
     // Update fire locations if fire is detected
-    if (mockData.isFireDetected && mockData.latitude != null && 
+    if (mockData.isFireDetected &&
+        mockData.latitude != null &&
         mockData.longitude != null) {
       _updateFireLocations(mockData);
     }
-    
+
     _error = null;
     notifyListeners();
-    
-    print('Simulated MQTT data generated - Gas: ${newGasLevel}ppm, Temp: ${newTemp.toStringAsFixed(1)}°C, Smoke: $smokeDetected, Flame: $flameDetected');
+
+    print(
+        'Simulated MQTT data generated - Gas: ${newGasLevel}ppm, Temp: ${newTemp.toStringAsFixed(1)}°C, Smoke: $smokeDetected, Flame: $flameDetected');
+  }
+
+  // Evaluate sensor data against thresholds to determine alert level
+  void _evaluateAlertLevels(SensorData sensorData) {
+    // Default to normal if no settings available
+    if (_settings == null) {
+      _currentAlertLevel = AlertLevel.normal;
+      return;
+    }
+
+    // Check gas level against thresholds
+    if (sensorData.gasLevel != null &&
+        sensorData.gasLevel! >= _settings!.criticalThreshold) {
+      _currentAlertLevel = AlertLevel.critical;
+    } else if (sensorData.gasLevel != null &&
+        sensorData.gasLevel! >= _settings!.warningThreshold) {
+      _currentAlertLevel = AlertLevel.warning;
+    }
+    // Check temperature against threshold
+    else if (sensorData.temperature != null &&
+        sensorData.temperature! >= _settings!.temperatureThreshold) {
+      _currentAlertLevel = AlertLevel.temperature;
+    }
+    // Default to normal if no thresholds exceeded
+    else {
+      _currentAlertLevel = AlertLevel.normal;
+    }
+
+    // Update UI
+    notifyListeners();
   }
 
   @override

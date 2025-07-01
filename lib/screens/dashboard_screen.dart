@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/fire_detection_provider.dart';
+import '../providers/settings_provider.dart';
 import '../utils/app_theme.dart';
 import '../widgets/emergency_contacts_widget.dart';
 import '../widgets/fire_alert_widget.dart';
@@ -10,25 +11,31 @@ import '../widgets/realtime_gas_monitor.dart';
 import '../widgets/safety_rules_widget.dart';
 import '../widgets/sensor_card.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
     final screenWidth = mediaQuery.size.width;
     final isSmallScreen = screenWidth < 360;
     final isMobile = screenWidth < 600;
-    final isTablet = screenWidth >= 600 && screenWidth < 900;
-    
+
     return Scaffold(
       appBar: AppBar(
         titleSpacing: isSmallScreen ? 8 : null,
         leadingWidth: isSmallScreen ? 40 : null,
         title: Text(
-          isSmallScreen ? 'Fire Detect' : 
-          isMobile ? 'Fire Detection' : 
-          'Fire Detection Dashboard',
+          isSmallScreen
+              ? 'Fire Detect'
+              : isMobile
+                  ? 'Fire Detection'
+                  : 'Fire Detection Dashboard',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: isSmallScreen ? 18 : null,
@@ -41,11 +48,12 @@ class DashboardScreen extends StatelessWidget {
             tooltip: 'Refresh Data',
             onPressed: () {
               // Get the provider without listening
-              final provider = Provider.of<FireDetectionProvider>(context, listen: false);
+              final provider =
+                  Provider.of<FireDetectionProvider>(context, listen: false);
               provider.refreshData();
             },
           ),
-          if (!isMobile) 
+          if (!isMobile)
             IconButton(
               icon: const Icon(Icons.info_outline),
               tooltip: 'About',
@@ -76,7 +84,7 @@ class DashboardScreen extends StatelessWidget {
           print('Last Update: ${provider.currentSensorData?.timestamp}');
           print('MQTT Connected: ${provider.isMqttConnected}');
           print('================');
-          
+
           if (provider.isLoading && provider.currentSensorData == null) {
             return const Center(
               child: CircularProgressIndicator(),
@@ -94,15 +102,22 @@ class DashboardScreen extends StatelessWidget {
                 builder: (context, constraints) {
                   final isMobile = constraints.maxWidth < 600;
                   final padding = isMobile ? 16.0 : 24.0;
-                  
+
                   // Calculate responsive spacing
-                  final horizontalPadding = constraints.maxWidth < 360 ? 12.0 : 
-                                          constraints.maxWidth < 600 ? 16.0 : 
-                                          constraints.maxWidth < 900 ? 20.0 : 24.0;
-                                          
-                  final verticalSpacing = constraints.maxWidth < 360 ? 12.0 : 
-                                          constraints.maxWidth < 600 ? 16.0 : 20.0;
-                  
+                  final horizontalPadding = constraints.maxWidth < 360
+                      ? 12.0
+                      : constraints.maxWidth < 600
+                          ? 16.0
+                          : constraints.maxWidth < 900
+                              ? 20.0
+                              : 24.0;
+
+                  final verticalSpacing = constraints.maxWidth < 360
+                      ? 12.0
+                      : constraints.maxWidth < 600
+                          ? 16.0
+                          : 20.0;
+
                   return Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: horizontalPadding,
@@ -114,15 +129,16 @@ class DashboardScreen extends StatelessWidget {
                         // Error message
                         if (provider.error != null)
                           _buildErrorMessage(provider.error!),
-                        
+
                         // Connection Status at top - responsive layout
                         LayoutBuilder(
                           builder: (context, constraints) {
                             final isSmallMobile = constraints.maxWidth < 360;
                             final isMobile = constraints.maxWidth < 600;
-                            final isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 900;
+                            final isTablet = constraints.maxWidth >= 600 &&
+                                constraints.maxWidth < 900;
                             final isDesktop = constraints.maxWidth >= 900;
-                            
+
                             if (isSmallMobile || isMobile) {
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,82 +191,90 @@ class DashboardScreen extends StatelessWidget {
                             }
                           },
                         ),
-                        
+
                         SizedBox(height: verticalSpacing),
-                        
+
                         // Gas Level and Fire Status Header
                         _buildStatusHeader(sensorData),
-                        
+
                         SizedBox(height: verticalSpacing),
-                        
+
                         // Sensor Cards Grid
                         _buildSensorGrid(sensorData),
-                        
+
                         SizedBox(height: verticalSpacing),
-                        
+
                         // Real-time Gas Level Monitoring Card
                         LayoutBuilder(
                           builder: (context, constraints) {
                             return RealtimeGasMonitor(
                               gasLevel: sensorData?.gasLevel,
-                              isFireRisk: sensorData?.gasLevel != null && sensorData!.gasLevel! > 1000,
-                              compactMode: constraints.maxWidth < 400, // Compact mode for very small screens
+                              isFireRisk: sensorData?.gasLevel != null &&
+                                  sensorData!.gasLevel! > 1000,
+                              compactMode: constraints.maxWidth <
+                                  400, // Compact mode for very small screens
                             );
                           },
                         ),
-                        
+
                         SizedBox(height: verticalSpacing),
-                        
+
                         // Fire Alert Widget with Animation - only show when needed
-                        if (sensorData?.isFireDetected == true || 
-                            sensorData?.smokeDetected == true || 
+                        if (sensorData?.isFireDetected == true ||
+                            sensorData?.smokeDetected == true ||
                             sensorData?.flameDetected == true ||
-                            (sensorData?.gasLevel != null && sensorData!.gasLevel! > 1000))
+                            (sensorData?.gasLevel != null &&
+                                sensorData!.gasLevel! > 1000))
                           FireAlertWidget(
-                            isFireDetected: sensorData?.isFireDetected == true || 
-                                          sensorData?.smokeDetected == true || 
-                                          sensorData?.flameDetected == true,
+                            isFireDetected:
+                                sensorData?.isFireDetected == true ||
+                                    sensorData?.smokeDetected == true ||
+                                    sensorData?.flameDetected == true,
                             detectionSource: _getDetectionSource(sensorData),
                             gasLevel: sensorData?.gasLevel,
                             temperature: sensorData?.temperature,
                           ),
-                        
-                        if (sensorData?.isFireDetected == true || 
-                            sensorData?.smokeDetected == true || 
+
+                        if (sensorData?.isFireDetected == true ||
+                            sensorData?.smokeDetected == true ||
                             sensorData?.flameDetected == true ||
-                            (sensorData?.gasLevel != null && sensorData!.gasLevel! > 1000))
+                            (sensorData?.gasLevel != null &&
+                                sensorData!.gasLevel! > 1000))
                           SizedBox(height: verticalSpacing),
-                        
+
                         // Safety Rules and Instructions Widget - adjust based on screen size
                         LayoutBuilder(
                           builder: (context, constraints) {
                             final isSmallScreen = constraints.maxWidth < 360;
                             return SafetyRulesWidget(
-                              isFireDetected: sensorData?.isFireDetected == true || 
-                                           sensorData?.smokeDetected == true || 
-                                           sensorData?.flameDetected == true,
-                              isGasRisk: sensorData?.gasLevel != null && sensorData!.gasLevel! > 1000,
+                              isFireDetected:
+                                  sensorData?.isFireDetected == true ||
+                                      sensorData?.smokeDetected == true ||
+                                      sensorData?.flameDetected == true,
+                              isGasRisk: sensorData?.gasLevel != null &&
+                                  sensorData!.gasLevel! > 1000,
                               gasLevel: sensorData?.gasLevel,
                               compactMode: isSmallScreen,
                             );
                           },
                         ),
-                        
+
                         SizedBox(height: verticalSpacing),
-                        
+
                         // Emergency Contacts Widget
                         LayoutBuilder(
                           builder: (context, constraints) {
                             final isSmallScreen = constraints.maxWidth < 360;
                             return EmergencyContactsWidget(
-                              isFireDetected: sensorData?.isFireDetected == true || 
-                                          sensorData?.smokeDetected == true || 
-                                          sensorData?.flameDetected == true,
+                              isFireDetected:
+                                  sensorData?.isFireDetected == true ||
+                                      sensorData?.smokeDetected == true ||
+                                      sensorData?.flameDetected == true,
                               compactMode: isSmallScreen,
                             );
                           },
                         ),
-                        
+
                         SizedBox(height: verticalSpacing),
                       ],
                     ),
@@ -302,8 +326,8 @@ class DashboardScreen extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: provider.isMqttConnected 
-                ? AppTheme.primaryGreen.withOpacity(0.1) 
+            color: provider.isMqttConnected
+                ? AppTheme.primaryGreen.withOpacity(0.1)
                 : AppTheme.errorColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
@@ -311,23 +335,21 @@ class DashboardScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                provider.isMqttConnected 
-                    ? Icons.wifi 
-                    : Icons.wifi_off,
+                provider.isMqttConnected ? Icons.wifi : Icons.wifi_off,
                 size: 16,
-                color: provider.isMqttConnected 
-                    ? AppTheme.primaryGreen 
+                color: provider.isMqttConnected
+                    ? AppTheme.primaryGreen
                     : AppTheme.errorColor,
               ),
               const SizedBox(width: 6),
               Text(
-                provider.isMqttConnected 
-                    ? 'MQTT Connected' 
+                provider.isMqttConnected
+                    ? 'MQTT Connected'
                     : 'Using API (MQTT Disconnected)',
                 style: TextStyle(
                   fontSize: 12,
-                  color: provider.isMqttConnected 
-                      ? AppTheme.primaryGreen 
+                  color: provider.isMqttConnected
+                      ? AppTheme.primaryGreen
                       : AppTheme.errorColor,
                   fontWeight: FontWeight.w500,
                 ),
@@ -341,10 +363,10 @@ class DashboardScreen extends StatelessWidget {
 
   String _formatTimestamp(DateTime? timestamp) {
     if (timestamp == null) return 'Never';
-    
+
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-    
+
     if (difference.inMinutes < 1) {
       return 'Just now';
     } else if (difference.inMinutes < 60) {
@@ -359,7 +381,7 @@ class DashboardScreen extends StatelessWidget {
   Widget _buildMainStatusCard(dynamic sensorData) {
     final isFireDetected = sensorData?.isFireDetected ?? false;
     final status = sensorData?.status ?? 'Unknown';
-    
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -410,9 +432,10 @@ class DashboardScreen extends StatelessWidget {
         // More granular responsive breakpoints
         final isSmallMobile = constraints.maxWidth < 360;
         final isMobile = constraints.maxWidth < 600;
-        final isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 900;
+        final isTablet =
+            constraints.maxWidth >= 600 && constraints.maxWidth < 900;
         final isDesktop = constraints.maxWidth >= 900;
-        
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -440,7 +463,7 @@ class DashboardScreen extends StatelessWidget {
             const SizedBox(height: 12),
             if (isSmallMobile)
               _buildSmallMobileSensorGrid(sensorData)
-            else if (isMobile) 
+            else if (isMobile)
               _buildMobileSensorGrid(sensorData)
             else if (isTablet)
               _buildTabletSensorGrid(sensorData)
@@ -469,9 +492,12 @@ class DashboardScreen extends StatelessWidget {
         const SizedBox(height: 8),
         SensorCard(
           title: 'Gas Sensor',
-          isActive: sensorData?.gasLevel != null && (sensorData!.gasLevel! > 300),
+          isActive:
+              sensorData?.gasLevel != null && (sensorData!.gasLevel! > 300),
           icon: Icons.gas_meter_outlined,
-          subtitle: sensorData?.gasLevel != null ? '${sensorData!.gasLevel} ppm' : 'No data',
+          subtitle: sensorData?.gasLevel != null
+              ? '${sensorData!.gasLevel} ppm'
+              : 'No data',
         ),
       ],
     );
@@ -502,9 +528,12 @@ class DashboardScreen extends StatelessWidget {
         const SizedBox(height: 8),
         SensorCard(
           title: 'Gas Sensor',
-          isActive: sensorData?.gasLevel != null && (sensorData!.gasLevel! > 300),
+          isActive:
+              sensorData?.gasLevel != null && (sensorData!.gasLevel! > 300),
           icon: Icons.gas_meter_outlined,
-          subtitle: sensorData?.gasLevel != null ? '${sensorData!.gasLevel} ppm' : 'No data',
+          subtitle: sensorData?.gasLevel != null
+              ? '${sensorData!.gasLevel} ppm'
+              : 'No data',
         ),
       ],
     );
@@ -532,9 +561,12 @@ class DashboardScreen extends StatelessWidget {
         Expanded(
           child: SensorCard(
             title: 'Gas',
-            isActive: sensorData?.gasLevel != null && (sensorData!.gasLevel! > 1000),
+            isActive:
+                sensorData?.gasLevel != null && (sensorData!.gasLevel! > 1000),
             icon: Icons.gas_meter_outlined,
-            subtitle: sensorData?.gasLevel != null ? '${sensorData!.gasLevel} ppm' : 'No data',
+            subtitle: sensorData?.gasLevel != null
+                ? '${sensorData!.gasLevel} ppm'
+                : 'No data',
           ),
         ),
       ],
@@ -565,9 +597,12 @@ class DashboardScreen extends StatelessWidget {
         Expanded(
           child: SensorCard(
             title: 'Gas',
-            isActive: sensorData?.gasLevel != null && (sensorData!.gasLevel! > 1000),
+            isActive:
+                sensorData?.gasLevel != null && (sensorData!.gasLevel! > 1000),
             icon: Icons.gas_meter_outlined,
-            subtitle: sensorData?.gasLevel != null ? '${sensorData!.gasLevel} ppm' : 'No data',
+            subtitle: sensorData?.gasLevel != null
+                ? '${sensorData!.gasLevel} ppm'
+                : 'No data',
             showDetails: true,
           ),
         ),
@@ -576,7 +611,8 @@ class DashboardScreen extends StatelessWidget {
           Expanded(
             child: SensorCard(
               title: 'Temperature',
-              isActive: sensorData?.temperature != null && (sensorData!.temperature! > 35),
+              isActive: sensorData?.temperature != null &&
+                  (sensorData!.temperature! > 35),
               icon: Icons.thermostat_outlined,
               subtitle: '${sensorData.temperature}°C',
               showDetails: true,
@@ -588,16 +624,22 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildGasMonitoringCard(dynamic sensorData) {
+    final context = this.context;
     final gasLevel = sensorData?.gasLevel ?? 0;
+
+    // Get the settings provider for thresholds
+    final settings = Provider.of<FireDetectionSettings>(context, listen: false);
+
     Color statusColor;
     String statusText;
     String statusDescription;
-    
-    if (gasLevel <= 1000) {
+
+    // Use dynamic thresholds from settings
+    if (gasLevel < settings.warningThreshold) {
       statusColor = Colors.green;
       statusText = 'SAFE';
       statusDescription = 'Gas levels are normal';
-    } else if (gasLevel <= 2000) {
+    } else if (gasLevel < settings.criticalThreshold) {
       statusColor = Colors.orange;
       statusText = 'CAUTION';
       statusDescription = 'Elevated gas levels detected';
@@ -606,7 +648,18 @@ class DashboardScreen extends StatelessWidget {
       statusText = 'DANGER';
       statusDescription = 'High gas levels - evacuate area';
     }
-    
+
+    // Also check temperature
+    if (sensorData?.temperature != null &&
+        sensorData.temperature >= settings.temperatureThreshold) {
+      // If temperature is high but gas levels are normal, show warning
+      if (statusColor == Colors.green) {
+        statusColor = Colors.orange;
+        statusText = 'CAUTION';
+        statusDescription = 'High temperature detected';
+      }
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -642,7 +695,7 @@ class DashboardScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          
+
           // Gas Level Gauge
           Center(
             child: GasLevelGauge(
@@ -651,9 +704,9 @@ class DashboardScreen extends StatelessWidget {
               unit: 'ppm',
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Status indicator
           Container(
             width: double.infinity,
@@ -724,7 +777,7 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Show which sensors are triggered
           Wrap(
             spacing: 8,
@@ -733,7 +786,8 @@ class DashboardScreen extends StatelessWidget {
               if (sensorData?.smokeDetected == true)
                 _buildAlertChip('Smoke Detected', Icons.cloud_outlined),
               if (sensorData?.flameDetected == true)
-                _buildAlertChip('Flame Detected', Icons.local_fire_department_outlined),
+                _buildAlertChip(
+                    'Flame Detected', Icons.local_fire_department_outlined),
               if (sensorData?.gasLevel != null && sensorData!.gasLevel! > 700)
                 _buildAlertChip('Gas Alert', Icons.gas_meter_outlined),
             ],
@@ -770,26 +824,26 @@ class DashboardScreen extends StatelessWidget {
 
   String? _getDetectionSource(dynamic sensorData) {
     if (sensorData == null) return null;
-    
+
     List<String> sources = [];
-    
+
     if (sensorData.smokeDetected == true) {
       sources.add('Sensor Asap');
     }
-    
+
     if (sensorData.flameDetected == true) {
       sources.add('Sensor Api');
     }
-    
+
     if (sensorData.gasLevel != null && sensorData.gasLevel > 2000) {
       sources.add('Sensor Gas');
     }
-    
-    if (sensorData.aiAnalysis != null && 
+
+    if (sensorData.aiAnalysis != null &&
         sensorData.aiAnalysis.toString().toLowerCase().contains('api')) {
       sources.add('Analisis AI');
     }
-    
+
     if (sources.isEmpty) return null;
     return sources.join(', ');
   }
@@ -797,11 +851,11 @@ class DashboardScreen extends StatelessWidget {
   Widget _buildStatusHeader(dynamic sensorData) {
     final isFireDetected = sensorData?.isFireDetected ?? false;
     final gasLevel = sensorData?.gasLevel ?? 0;
-    
+
     Color statusColor;
     String statusText;
     IconData statusIcon;
-    
+
     if (isFireDetected) {
       statusColor = Colors.red;
       statusText = 'KEBAKARAN TERDETEKSI';
@@ -815,32 +869,34 @@ class DashboardScreen extends StatelessWidget {
       statusText = 'KONDISI NORMAL';
       statusIcon = Icons.check_circle_rounded;
     }
-    
+
     return LayoutBuilder(
       builder: (context, constraints) {
         // Responsive adjustments based on width
         final isSmallScreen = constraints.maxWidth < 360;
         final isMediumScreen = constraints.maxWidth < 600;
-        
+
         // Adjust padding based on screen size
-        final verticalPadding = isSmallScreen ? 12.0 : (isMediumScreen ? 16.0 : 20.0);
-        final horizontalPadding = isSmallScreen ? 16.0 : (isMediumScreen ? 20.0 : 24.0);
-        
+        final verticalPadding =
+            isSmallScreen ? 12.0 : (isMediumScreen ? 16.0 : 20.0);
+        final horizontalPadding =
+            isSmallScreen ? 16.0 : (isMediumScreen ? 20.0 : 24.0);
+
         // Adjust icon size based on screen size
         final iconSize = isSmallScreen ? 28.0 : (isMediumScreen ? 36.0 : 40.0);
         final iconPadding = isSmallScreen ? 12.0 : 16.0;
-        
+
         // Adjust text sizes
-        final titleFontSize = isSmallScreen ? 16.0 : (isMediumScreen ? 18.0 : 20.0);
-        final subtitleFontSize = isSmallScreen ? 13.0 : (isMediumScreen ? 14.0 : 16.0);
+        final titleFontSize =
+            isSmallScreen ? 16.0 : (isMediumScreen ? 18.0 : 20.0);
+        final subtitleFontSize =
+            isSmallScreen ? 13.0 : (isMediumScreen ? 14.0 : 16.0);
         final subtitleIconSize = isSmallScreen ? 14.0 : 16.0;
-        
+
         return Container(
           width: double.infinity,
           padding: EdgeInsets.symmetric(
-            vertical: verticalPadding, 
-            horizontal: horizontalPadding
-          ),
+              vertical: verticalPadding, horizontal: horizontalPadding),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -894,20 +950,62 @@ class DashboardScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              
+
               // Sensor values
               // Use responsive layout for the sensor data
               Container(
                 margin: EdgeInsets.only(
-                  top: isSmallScreen ? 8 : 12,
-                  left: iconSize + iconPadding * 2 + 16
-                ),
-                child: isMediumScreen ?
-                  // Stack vertically on small screens
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                    top: isSmallScreen ? 8 : 12,
+                    left: iconSize + iconPadding * 2 + 16),
+                child: isMediumScreen
+                    ?
+                    // Stack vertically on small screens
+                    Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.gas_meter_outlined,
+                                size: subtitleIconSize,
+                                color: AppTheme.textSecondary,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Gas: ${gasLevel.toString()} ppm',
+                                style: TextStyle(
+                                  fontSize: subtitleFontSize,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (sensorData?.temperature != null) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.thermostat_outlined,
+                                  size: subtitleIconSize,
+                                  color: AppTheme.textSecondary,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Suhu: ${sensorData!.temperature}°C',
+                                  style: TextStyle(
+                                    fontSize: subtitleFontSize,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      )
+                    // Layout horizontally on larger screens
+                    : Row(
                         children: [
                           Icon(
                             Icons.gas_meter_outlined,
@@ -923,12 +1021,8 @@ class DashboardScreen extends StatelessWidget {
                               color: AppTheme.textSecondary,
                             ),
                           ),
-                        ],
-                      ),
-                      if (sensorData?.temperature != null) ...[
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
+                          if (sensorData?.temperature != null) ...[
+                            const SizedBox(width: 16),
                             Icon(
                               Icons.thermostat_outlined,
                               size: subtitleIconSize,
@@ -944,46 +1038,8 @@ class DashboardScreen extends StatelessWidget {
                               ),
                             ),
                           ],
-                        ),
-                      ],
-                    ],
-                  )
-                  // Layout horizontally on larger screens
-                  : Row(
-                      children: [
-                        Icon(
-                          Icons.gas_meter_outlined,
-                          size: subtitleIconSize,
-                          color: AppTheme.textSecondary,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Gas: ${gasLevel.toString()} ppm',
-                          style: TextStyle(
-                            fontSize: subtitleFontSize,
-                            fontWeight: FontWeight.w500,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                        if (sensorData?.temperature != null) ...[
-                          const SizedBox(width: 16),
-                          Icon(
-                            Icons.thermostat_outlined,
-                            size: subtitleIconSize,
-                            color: AppTheme.textSecondary,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Suhu: ${sensorData!.temperature}°C',
-                            style: TextStyle(
-                              fontSize: subtitleFontSize,
-                              fontWeight: FontWeight.w500,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
                         ],
-                      ],
-                    ),
+                      ),
               ),
             ],
           ),

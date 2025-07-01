@@ -12,17 +12,19 @@ class MqttService {
   final String _identifier = 'agrotech_fire_app';
   final String _host = '103.139.192.54'; // Use your MQTT broker here
   final int _port = 1883;
-  
+
   // Topics - Updated to match your Arduino code
   final String _kelompokTopic = 'kelompok4';
   final String _temperatureTopic = 'kelompok4/temperature';
   final String _humidityTopic = 'kelompok4/humidity';
-  final String _gasTopic = 'Tubes/kelompok4/gas'; // Updated to match Arduino code
+  final String _gasTopic =
+      'Tubes/kelompok4/gas'; // Updated to match Arduino code
   final String _flameTopic = 'kelompok4/flame';
   final String _smokeTopic = 'kelompok4/smoke';
-  final String _apiTopic = 'Tubes/kelompok4/api'; // Updated to match Arduino code
+  final String _apiTopic =
+      'Tubes/kelompok4/api'; // Updated to match Arduino code
   final String _locationTopic = 'kelompok4/location';
-  
+
   // Additional topics for wildcard subscription
   final String _tubesBaseTopic = 'Tubes/kelompok4';
 
@@ -33,11 +35,11 @@ class MqttService {
   // Connection status
   bool _isConnected = false;
   bool get isConnected => _isConnected;
-  
+
   // Reconnection fields
   Timer? _reconnectTimer;
   final int _reconnectInterval = 5; // Seconds
-  
+
   // Current sensor values - untuk menggabungkan data dari berbagai topic
   int? _currentGasLevel;
   bool _currentSmokeDetected = false;
@@ -52,29 +54,36 @@ class MqttService {
       print('Already connected to MQTT broker');
       return true;
     }
-    
-    _client = MqttServerClient(_host, _identifier);
+
+    // Create a new client with a unique ID to avoid conflicts
+    final uniqueId = '${_identifier}_${DateTime.now().millisecondsSinceEpoch}';
+    _client = MqttServerClient(_host, uniqueId);
     _client!.port = _port;
     _client!.keepAlivePeriod = 30;
     _client!.onDisconnected = _onDisconnected;
     _client!.onConnected = _onConnected;
     _client!.onSubscribed = _onSubscribed;
-    
-    // Set a ping interval to detect connection issues
+
+    // Important for release mode - explicitly set secure to false for plain MQTT
+    _client!.secure = false;
+
+    // Configure connection handling
     _client!.autoReconnect = true;
     _client!.resubscribeOnAutoReconnect = true;
-    
+    _client!.connectTimeoutPeriod = 3000; // 3 seconds timeout
+
     // Set logging
     _client!.logging(on: true);
     _client!.setProtocolV311();
 
+    // Configure connection message with all required fields
     final connMessage = MqttConnectMessage()
-        .withClientIdentifier(_identifier + '_${DateTime.now().millisecondsSinceEpoch}')
+        .withClientIdentifier(uniqueId)
         .withWillTopic('willtopic')
         .withWillMessage('Connection lost')
         .startClean()
         .withWillQos(MqttQos.atLeastOnce)
-        .authenticateAs('kelompok_4', 'admin123#'); // These credentials match your Arduino code
+        .authenticateAs('kelompok_4', 'admin123#');
 
     _client!.connectionMessage = connMessage;
 
@@ -82,7 +91,7 @@ class MqttService {
       print('Connecting to MQTT broker at $_host:$_port...');
       await _client!.connect();
       final state = _client!.connectionStatus!.state;
-      
+
       if (state == MqttConnectionState.connected) {
         print('Connected to MQTT broker successfully');
         _isConnected = true;
@@ -105,17 +114,19 @@ class MqttService {
   void subscribeToTopics() {
     if (_client?.connectionStatus?.state == MqttConnectionState.connected) {
       print('Subscribing to MQTT topics...');
-      
+
       // Subscribe to main kelompok topic and all subtopics
       _client!.subscribe(_kelompokTopic, MqttQos.atLeastOnce);
-      _client!.subscribe(_kelompokTopic + '/+', MqttQos.atLeastOnce); // Wildcard for all subtopics
+      _client!.subscribe(_kelompokTopic + '/+',
+          MqttQos.atLeastOnce); // Wildcard for all subtopics
       print('Subscribed to main topic: $_kelompokTopic');
-      
+
       // Subscribe to Tubes topics (from Arduino code)
       _client!.subscribe(_tubesBaseTopic, MqttQos.atLeastOnce);
-      _client!.subscribe(_tubesBaseTopic + '/+', MqttQos.atLeastOnce); // Wildcard for all Tubes subtopics
+      _client!.subscribe(_tubesBaseTopic + '/+',
+          MqttQos.atLeastOnce); // Wildcard for all Tubes subtopics
       print('Subscribed to Tubes topic: $_tubesBaseTopic');
-      
+
       // Individual topics
       _client!.subscribe(_gasTopic, MqttQos.atLeastOnce);
       _client!.subscribe(_apiTopic, MqttQos.atLeastOnce);
@@ -127,7 +138,7 @@ class MqttService {
 
       // Listen for changes
       _setupMessageListener();
-      
+
       print('All MQTT topics subscribed successfully');
     } else {
       print('Cannot subscribe: MQTT client not connected');
@@ -154,21 +165,25 @@ class MqttService {
     // Determine fire detection based on gas levels and API status
     // Updated thresholds to match Arduino's raw sensor values
     bool isHighGasLevel = _currentGasLevel != null && _currentGasLevel! > 1000;
-    bool isCriticalGasLevel = _currentGasLevel != null && _currentGasLevel! > 2000;
-    
+    bool isCriticalGasLevel =
+        _currentGasLevel != null && _currentGasLevel! > 2000;
+
     final sensorData = SensorData(
       id: DateTime.now().millisecondsSinceEpoch,
       timestamp: DateTime.now(),
       gasLevel: _currentGasLevel ?? 0, // Provide default to avoid null
-      smokeDetected: _currentSmokeDetected || isHighGasLevel || _apiFireDetected,
-      flameDetected: _currentFlameDetected || isCriticalGasLevel || _apiFireDetected,
+      smokeDetected:
+          _currentSmokeDetected || isHighGasLevel || _apiFireDetected,
+      flameDetected:
+          _currentFlameDetected || isCriticalGasLevel || _apiFireDetected,
       temperature: _currentTemperature,
       humidity: _currentHumidity,
-      latitude: -7.12345,  // You may want to update these with your actual location
+      latitude:
+          -7.12345, // You may want to update these with your actual location
       longitude: 110.12345,
       aiAnalysis: _apiFireDetected ? "Api Terdeteksi" : null,
     );
-    
+
     print('=== EMITTING SENSOR DATA ===');
     print('Gas Level: ${_currentGasLevel ?? "N/A"} ppm');
     print('Smoke Detected: ${sensorData.smokeDetected}');
@@ -177,31 +192,49 @@ class MqttService {
     print('Humidity: ${_currentHumidity}%');
     print('API Fire Detection: $_apiFireDetected');
     print('============================');
-    
+
     _sensorDataStreamController.add(sensorData);
   }
 
   // Message handler
   void _onMessage(List<MqttReceivedMessage<MqttMessage>> messages) {
-    for (var message in messages) {
-      final MqttPublishMessage recMess = message.payload as MqttPublishMessage;
-      final String messageString = MqttPublishPayload.bytesToStringAsString(
-          recMess.payload.message);
-      
-      print('Received message on topic: ${message.topic}');
-      print('Message: $messageString');
+    if (messages.isEmpty) {
+      print('Received empty message list');
+      return;
+    }
 
+    for (var message in messages) {
       try {
-        bool shouldEmitUpdate = true; // Always emit update on any message for real-time data
-        
+        if (message.payload is! MqttPublishMessage) {
+          print(
+              'Received message with unexpected payload type: ${message.payload.runtimeType}');
+          continue;
+        }
+
+        final MqttPublishMessage recMess =
+            message.payload as MqttPublishMessage;
+        // Proceed with extracting the message
+
+        final String messageString =
+            MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+
+        print('Received message on topic: ${message.topic}');
+        print('Message: $messageString');
+
+        // Process message by topic
+        bool shouldEmitUpdate =
+            true; // Always emit update on any message for real-time data
+
         // Handle gas sensor data from Tubes/kelompok4/gas
         if (message.topic == _gasTopic) {
           print('Processing gas topic message: $messageString');
           final gasLevel = int.tryParse(messageString.trim());
           if (gasLevel != null) {
-            print('Parsed gas level: $gasLevel ppm (current: $_currentGasLevel)');
+            print(
+                'Parsed gas level: $gasLevel ppm (current: $_currentGasLevel)');
             if (gasLevel != _currentGasLevel) {
-              print('Gas level changed from $_currentGasLevel to $gasLevel ppm');
+              print(
+                  'Gas level changed from $_currentGasLevel to $gasLevel ppm');
               _currentGasLevel = gasLevel;
               shouldEmitUpdate = true;
             } else {
@@ -211,14 +244,15 @@ class MqttService {
             print('Failed to parse gas level from: $messageString');
           }
         }
-        // Handle API status from Tubes/kelompok4/api  
+        // Handle API status from Tubes/kelompok4/api
         else if (message.topic == _apiTopic) {
           print('API status received: $messageString');
-          
+
           final wasFireDetected = _apiFireDetected;
           // Check for "Api Terdeteksi" string from Arduino code
-          _apiFireDetected = messageString.toLowerCase().contains('api terdeteksi');
-          
+          _apiFireDetected =
+              messageString.toLowerCase().contains('api terdeteksi');
+
           if (_apiFireDetected != wasFireDetected) {
             print('API fire detection changed: $_apiFireDetected');
             shouldEmitUpdate = true;
@@ -226,9 +260,9 @@ class MqttService {
         }
         // Handle smoke sensor
         else if (message.topic == _smokeTopic) {
-          final smokeDetected = messageString.toLowerCase() == 'true' || 
-                             messageString.trim() == '1' || 
-                             messageString.toLowerCase().contains('detected');
+          final smokeDetected = messageString.toLowerCase() == 'true' ||
+              messageString.trim() == '1' ||
+              messageString.toLowerCase().contains('detected');
           if (smokeDetected != _currentSmokeDetected) {
             print('Smoke detection changed: $smokeDetected');
             _currentSmokeDetected = smokeDetected;
@@ -237,9 +271,9 @@ class MqttService {
         }
         // Handle flame sensor
         else if (message.topic == _flameTopic) {
-          final flameDetected = messageString.toLowerCase() == 'true' || 
-                             messageString.trim() == '1' || 
-                             messageString.toLowerCase().contains('detected');
+          final flameDetected = messageString.toLowerCase() == 'true' ||
+              messageString.trim() == '1' ||
+              messageString.toLowerCase().contains('detected');
           if (flameDetected != _currentFlameDetected) {
             print('Flame detection changed: $flameDetected');
             _currentFlameDetected = flameDetected;
@@ -269,36 +303,45 @@ class MqttService {
           // Try to parse as JSON if it's in a combined format
           try {
             final Map<String, dynamic> jsonData = jsonDecode(messageString);
-            
+
             // Update values if found in JSON
             if (jsonData.containsKey('gas')) {
-              _currentGasLevel = int.tryParse(jsonData['gas'].toString()) ?? _currentGasLevel;
+              _currentGasLevel =
+                  int.tryParse(jsonData['gas'].toString()) ?? _currentGasLevel;
               shouldEmitUpdate = true;
             }
-            
+
             if (jsonData.containsKey('api')) {
-              _apiFireDetected = jsonData['api'].toString().toLowerCase().contains('api terdeteksi');
+              _apiFireDetected = jsonData['api']
+                  .toString()
+                  .toLowerCase()
+                  .contains('api terdeteksi');
               shouldEmitUpdate = true;
             }
-            
+
             if (jsonData.containsKey('temperature')) {
-              _currentTemperature = double.tryParse(jsonData['temperature'].toString()) ?? _currentTemperature;
+              _currentTemperature =
+                  double.tryParse(jsonData['temperature'].toString()) ??
+                      _currentTemperature;
               shouldEmitUpdate = true;
             }
-            
+
             if (jsonData.containsKey('humidity')) {
-              _currentHumidity = double.tryParse(jsonData['humidity'].toString()) ?? _currentHumidity;
+              _currentHumidity =
+                  double.tryParse(jsonData['humidity'].toString()) ??
+                      _currentHumidity;
               shouldEmitUpdate = true;
             }
           } catch (e) {
             print('Error parsing JSON from main topic: $e');
           }
-        }
-        else if ((message.topic.startsWith(_kelompokTopic) || message.topic.startsWith(_tubesBaseTopic)) && 
-                message.topic != _gasTopic && message.topic != _apiTopic) {
+        } else if ((message.topic.startsWith(_kelompokTopic) ||
+                message.topic.startsWith(_tubesBaseTopic)) &&
+            message.topic != _gasTopic &&
+            message.topic != _apiTopic) {
           try {
             final Map<String, dynamic> data = jsonDecode(messageString);
-            
+
             // Update individual values if present
             if (data.containsKey('gas') || data.containsKey('gas_level')) {
               final gasLevel = data['gas'] ?? data['gas_level'];
@@ -307,7 +350,7 @@ class MqttService {
                 shouldEmitUpdate = true;
               }
             }
-            
+
             if (data.containsKey('temperature')) {
               final temp = data['temperature'];
               if (temp is num && temp.toDouble() != _currentTemperature) {
@@ -315,7 +358,7 @@ class MqttService {
                 shouldEmitUpdate = true;
               }
             }
-            
+
             if (data.containsKey('humidity')) {
               final hum = data['humidity'];
               if (hum is num && hum.toDouble() != _currentHumidity) {
@@ -323,17 +366,17 @@ class MqttService {
                 shouldEmitUpdate = true;
               }
             }
-            
+
             // Create complete sensor data from JSON
             if (!shouldEmitUpdate) {
               if (!data.containsKey('timestamp')) {
                 data['timestamp'] = DateTime.now().toIso8601String();
               }
-              
+
               if (!data.containsKey('id')) {
                 data['id'] = DateTime.now().millisecondsSinceEpoch;
               }
-              
+
               final sensorData = SensorData.fromJson(data);
               _sensorDataStreamController.add(sensorData);
             }
@@ -341,15 +384,13 @@ class MqttService {
             print('Not JSON data, treating as simple value: $messageString');
           }
         }
-        
+
         // Emit combined update if any sensor value changed
         if (shouldEmitUpdate) {
           _emitCombinedSensorData();
         }
-        
       } catch (e) {
         print('Error processing MQTT message on topic ${message.topic}: $e');
-        print('Message content: $messageString');
       }
     }
   }
@@ -364,13 +405,13 @@ class MqttService {
   void _onDisconnected() {
     _isConnected = false;
     print('Disconnected from MQTT broker');
-    
+
     // Try to reconnect after interval
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(Duration(seconds: _reconnectInterval), () async {
       print('Attempting to reconnect to MQTT broker...');
       await connect();
-      
+
       // If connection successful, resubscribe
       if (_isConnected) {
         subscribeToTopics();
@@ -417,7 +458,7 @@ class MqttService {
   }
 
   // Disconnect from MQTT broker
-  void disconnect() {
+  Future<void> disconnect() async {
     _reconnectTimer?.cancel();
     if (_client != null) {
       try {
