@@ -20,6 +20,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _showMyLocationEnabled = true;
   bool _autoRefreshMapEnabled = true;
 
+  // Gas level thresholds
+  double _warningThreshold = 1000;
+  double _criticalThreshold = 2000;
+  double _temperatureThreshold = 40;
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +44,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           // App Information Card
+          // Alert Thresholds Section
+          _buildSectionHeader('Alert Thresholds'),
+          _buildThresholdsCard(),
+          
+          const SizedBox(height: 20),
+          
           _buildSectionHeader('App Information'),
           Container(
             decoration: BoxDecoration(
@@ -394,7 +405,202 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // Helper methods for implementing the functionality
+  Widget _buildThresholdsCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.shadowColor,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Gas Level Thresholds',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Adjust when alerts should be triggered based on gas level readings.',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Warning level slider
+            _buildLabeledSlider(
+              label: 'Warning Level',
+              value: _warningThreshold,
+              min: 500,
+              max: 1500,
+              divisions: 10,
+              activeColor: Colors.orange,
+              valueLabel: '${_warningThreshold.toInt()} ppm',
+              onChanged: (value) {
+                setState(() {
+                  _warningThreshold = value;
+                  // Ensure critical is always higher than warning
+                  if (_criticalThreshold < _warningThreshold + 300) {
+                    _criticalThreshold = _warningThreshold + 300;
+                  }
+                });
+              },
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Critical level slider
+            _buildLabeledSlider(
+              label: 'Critical Level',
+              value: _criticalThreshold,
+              min: 1500,
+              max: 3000,
+              divisions: 15,
+              activeColor: Colors.red,
+              valueLabel: '${_criticalThreshold.toInt()} ppm',
+              onChanged: (value) {
+                setState(() {
+                  _criticalThreshold = value;
+                });
+              },
+            ),
+            
+            const Divider(height: 32),
+            
+            const Text(
+              'Temperature Threshold',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Temperature above this level may indicate fire risk.',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Temperature threshold slider
+            _buildLabeledSlider(
+              label: 'High Temperature',
+              value: _temperatureThreshold,
+              min: 30,
+              max: 60,
+              divisions: 30,
+              activeColor: Colors.deepOrange,
+              valueLabel: '${_temperatureThreshold.toInt()}°C',
+              onChanged: (value) {
+                setState(() {
+                  _temperatureThreshold = value;
+                });
+              },
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Save button
+            ElevatedButton(
+              onPressed: _saveThresholdSettings,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryGreen,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Save Threshold Settings',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLabeledSlider({
+    required String label,
+    required double value,
+    required double min,
+    required double max,
+    required int divisions,
+    required Color activeColor,
+    required String valueLabel,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: activeColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: activeColor.withOpacity(0.3)),
+              ),
+              child: Text(
+                valueLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: activeColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: activeColor,
+            inactiveTrackColor: activeColor.withOpacity(0.2),
+            thumbColor: activeColor,
+            overlayColor: activeColor.withOpacity(0.2),
+          ),
+          child: Slider(
+            value: value,
+            min: min,
+            max: max,
+            divisions: divisions,
+            label: valueLabel,
+            onChanged: onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+
   void _saveNotificationSettings() async {
     // Here you would typically use shared preferences or another storage mechanism
     // Example:
@@ -451,10 +657,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
     //   _systemUpdatesEnabled = prefs.getBool('systemUpdatesEnabled') ?? false;
     //   _showMyLocationEnabled = prefs.getBool('showMyLocation') ?? true;
     //   _autoRefreshMapEnabled = prefs.getBool('autoRefreshMap') ?? true;
+    //   _warningThreshold = prefs.getDouble('warningThreshold') ?? 1000;
+    //   _criticalThreshold = prefs.getDouble('criticalThreshold') ?? 2000;
+    //   _temperatureThreshold = prefs.getDouble('temperatureThreshold') ?? 40;
     // });
     
     // For now, we'll use the default values
     // This is already done in the class field initialization
     debugPrint('Settings loaded');
+  }
+
+  Future<void> _saveThresholdSettings() async {
+    // Save settings to shared preferences
+    try {
+      // Example implementation:
+      // final prefs = await SharedPreferences.getInstance();
+      // await prefs.setDouble('warningThreshold', _warningThreshold);
+      // await prefs.setDouble('criticalThreshold', _criticalThreshold);
+      // await prefs.setDouble('temperatureThreshold', _temperatureThreshold);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Threshold settings saved'),
+          backgroundColor: AppTheme.primaryGreen,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to save settings: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 }

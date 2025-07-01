@@ -268,9 +268,11 @@ class FireDetectionProvider extends ChangeNotifier {
   void simulateMqttData() {
     final random = Random();
     
-    // Generate more realistic sensor values
-    final baseGasLevel = _currentSensorData?.gasLevel ?? 200;
-    final newGasLevel = (baseGasLevel + (random.nextInt(200) - 100)).clamp(0, 1000);
+    // Generate more realistic sensor values matching ESP32 ADC range (0-4095)
+    // MQ-135 typically shows values around 100-300 in clean air, 1000+ for gas detection
+    final baseGasLevel = _currentSensorData?.gasLevel ?? 800;
+    // Generate values between -400 and +400 from base, with ESP32 ADC range in mind
+    final newGasLevel = (baseGasLevel + (random.nextInt(800) - 400)).clamp(100, 4000);
     
     final baseTemp = _currentSensorData?.temperature ?? 28.0;
     final newTemp = (baseTemp + (random.nextDouble() * 6 - 3)).clamp(15.0, 45.0);
@@ -278,15 +280,15 @@ class FireDetectionProvider extends ChangeNotifier {
     final baseHumidity = _currentSensorData?.humidity ?? 65.0;
     final newHumidity = (baseHumidity + (random.nextDouble() * 10 - 5)).clamp(30.0, 90.0);
     
-    // Simulate different scenarios based on gas level
+    // Simulate different scenarios based on gas level - adjusted for ESP32 ADC values
     bool smokeDetected = false;
     bool flameDetected = false;
     
-    if (newGasLevel > 600) {
-      // High gas level scenario
+    if (newGasLevel > 2000) {
+      // High gas level scenario - ESP32 ADC values are higher
       smokeDetected = random.nextBool();
-      flameDetected = newGasLevel > 800 ? random.nextBool() : false;
-    } else if (newGasLevel > 400) {
+      flameDetected = newGasLevel > 3000 ? random.nextBool() : false;
+    } else if (newGasLevel > 1500) {
       // Medium gas level scenario
       smokeDetected = random.nextDouble() < 0.3; // 30% chance
     }
