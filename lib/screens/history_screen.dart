@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/fire_detection_provider.dart';
 import '../utils/app_theme.dart';
 
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  String _filterType = 'all'; // all, alerts, normal
 
   @override
   Widget build(BuildContext context) {
@@ -18,15 +26,115 @@ class HistoryScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.download_rounded),
+            tooltip: 'Export history',
+            onPressed: () {
+              final provider = Provider.of<FireDetectionProvider>(
+                context,
+                listen: false,
+              );
+              
+              List<dynamic> dataToExport = provider.sensorHistory;
+              switch (_filterType) {
+                case 'alerts':
+                  dataToExport = provider.sensorHistory
+                      .where((data) => data.isFireDetected)
+                      .toList();
+                  break;
+                case 'normal':
+                  dataToExport = provider.sensorHistory
+                      .where((data) => !data.isFireDetected)
+                      .toList();
+                  break;
+              }
+              
+              _exportHistory(dataToExport);
+            },
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.filter_list_rounded),
+            tooltip: 'Filter history',
+            onSelected: (value) {
+              if (value == 'clear') {
+                _showClearHistoryDialog();
+              } else {
+                setState(() {
+                  _filterType = value;
+                });
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'all',
+                child: Row(
+                  children: [
+                    Icon(Icons.list_rounded, size: 20),
+                    SizedBox(width: 8),
+                    Text('All Records'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'alerts',
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_rounded, size: 20, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Alerts Only'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'normal',
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle_rounded, size: 20, color: Colors.green),
+                    SizedBox(width: 8),
+                    Text('Normal Only'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'clear',
+                child: Row(
+                  children: [
+                    Icon(Icons.clear_all_rounded, size: 20, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Clear History'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: () {
-              context.read<FireDetectionProvider>().refreshData();
+              context.read<FireDetectionProvider>().refreshHistory();
             },
           ),
         ],
       ),
       body: Consumer<FireDetectionProvider>(
         builder: (context, provider, child) {
+          // Filter the history based on selected filter
+          List<dynamic> filteredHistory = provider.sensorHistory;
+          
+          switch (_filterType) {
+            case 'alerts':
+              filteredHistory = provider.sensorHistory
+                  .where((data) => data.isFireDetected)
+                  .toList();
+              break;
+            case 'normal':
+              filteredHistory = provider.sensorHistory
+                  .where((data) => !data.isFireDetected)
+                  .toList();
+              break;
+            default:
+              filteredHistory = provider.sensorHistory;
+          }
+
           if (provider.isLoading && provider.sensorHistory.isEmpty) {
             return const Center(
               child: CircularProgressIndicator(
@@ -35,19 +143,27 @@ class HistoryScreen extends StatelessWidget {
             );
           }
 
-          if (provider.sensorHistory.isEmpty) {
+          if (filteredHistory.isEmpty) {
             return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    Icons.history_rounded,
+                    _filterType == 'alerts' 
+                        ? Icons.warning_outlined
+                        : _filterType == 'normal'
+                        ? Icons.check_circle_outline
+                        : Icons.history_rounded,
                     size: 72,
                     color: AppTheme.textSecondary.withOpacity(0.3),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'No detection history available',
+                  Text(
+                    _filterType == 'alerts'
+                        ? 'No fire alerts in history'
+                        : _filterType == 'normal'
+                        ? 'No normal readings in history'
+                        : 'No detection history available',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w500,
@@ -57,7 +173,7 @@ class HistoryScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   ElevatedButton.icon(
                     onPressed: () {
-                      provider.refreshData();
+                      provider.refreshHistory();
                     },
                     icon: const Icon(Icons.refresh_rounded, size: 18),
                     label: const Text('Refresh'),
@@ -68,15 +184,83 @@ class HistoryScreen extends StatelessWidget {
           }
 
           return RefreshIndicator(
-            onRefresh: provider.refreshData,
+            onRefresh: () => provider.refreshHistory(),
             color: AppTheme.primaryGreen,
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: provider.sensorHistory.length,
-              itemBuilder: (context, index) {
-                final data = provider.sensorHistory[index];
-                return _buildHistoryItem(data, context, index == 0);
-              },
+            child: Column(
+              children: [
+                // Statistics header
+                _buildHistoryStats(provider.sensorHistory),
+                
+                // Filter status bar
+                if (_filterType != 'all')
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16, 
+                      vertical: 8
+                    ),
+                    decoration: BoxDecoration(
+                      color: _filterType == 'alerts' 
+                          ? Colors.red.withOpacity(0.1)
+                          : Colors.green.withOpacity(0.1),
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Colors.grey.shade300,
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _filterType == 'alerts' 
+                              ? Icons.warning_rounded
+                              : Icons.check_circle_rounded,
+                          size: 16,
+                          color: _filterType == 'alerts' 
+                              ? Colors.red
+                              : Colors.green,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Showing ${_filterType == 'alerts' ? 'fire alerts' : 'normal readings'} only (${filteredHistory.length} items)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _filterType == 'alerts' 
+                                ? Colors.red
+                                : Colors.green,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _filterType = 'all';
+                            });
+                          },
+                          child: const Icon(
+                            Icons.close,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                // Statistics header
+                _buildHistoryStats(filteredHistory),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: filteredHistory.length,
+                    itemBuilder: (context, index) {
+                      final data = filteredHistory[index];
+                      return _buildHistoryItem(data, context, index == 0);
+                    },
+                  ),
+                ),
+              ],
             ),
           );
         },
@@ -309,6 +493,192 @@ class HistoryScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildHistoryStats(List<dynamic> history) {
+    final totalRecords = history.length;
+    final alertCount = history.where((data) => data.isFireDetected).length;
+    final normalCount = totalRecords - alertCount;
+    
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              children: [
+                Text(
+                  '$totalRecords',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const Text(
+                  'Total Records',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 40,
+            color: Colors.grey.shade300,
+          ),
+          Expanded(
+            child: Column(
+              children: [
+                Text(
+                  '$alertCount',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+                const Text(
+                  'Fire Alerts',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 40,
+            color: Colors.grey.shade300,
+          ),
+          Expanded(
+            child: Column(
+              children: [
+                Text(
+                  '$normalCount',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryGreen,
+                  ),
+                ),
+                const Text(
+                  'Normal',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _exportHistory(List<dynamic> history) {
+    if (history.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No data to export'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
+    StringBuffer csv = StringBuffer();
+    
+    // CSV Header
+    csv.writeln('Timestamp,Temperature(°C),Humidity(%),Gas Level(ppm),Flame Detected,Status,Alert Level');
+    
+    // CSV Data
+    for (final data in history) {
+      csv.writeln('${dateFormat.format(data.timestamp)},'
+          '${data.temperature?.toStringAsFixed(1) ?? 'N/A'},'
+          '${data.humidity?.toStringAsFixed(1) ?? 'N/A'},'
+          '${data.gasLevel ?? 'N/A'},'
+          '${data.flameDetected ? 'Yes' : 'No'},'
+          '${data.status},'
+          '${data.isFireDetected ? 'ALERT' : 'NORMAL'}');
+    }
+    
+    // Copy to clipboard
+    Clipboard.setData(ClipboardData(text: csv.toString()));
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('History exported to clipboard (${history.length} records)'),
+        backgroundColor: AppTheme.primaryGreen,
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: Colors.white,
+          onPressed: () {},
+        ),
+      ),
+    );
+  }
+
+  void _showClearHistoryDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning_rounded, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Clear History'),
+            ],
+          ),
+          content: const Text(
+            'Are you sure you want to clear all detection history? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Provider.of<FireDetectionProvider>(context, listen: false)
+                    .clearHistory();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('History cleared successfully'),
+                    backgroundColor: AppTheme.primaryGreen,
+                  ),
+                );
+              },
+              child: const Text(
+                'Clear',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

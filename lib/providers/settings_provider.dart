@@ -111,8 +111,6 @@ class FireDetectionSettings with ChangeNotifier {
         return _warningAlertsEnabled;
       case AlertLevel.normal:
         return false;
-      default:
-        return false;
     }
   }
 

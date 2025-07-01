@@ -56,6 +56,9 @@ class FireDetectionProvider extends ChangeNotifier {
   Future<void> _initializeServices() async {
     _setLoading(true);
 
+    // Load initial sensor history
+    await _fetchSensorHistory();
+
     // Connect to MQTT
     await _connectToMqtt();
 
@@ -247,6 +250,32 @@ class FireDetectionProvider extends ChangeNotifier {
     }
   }
 
+  // Fetch sensor history from API
+  Future<void> _fetchSensorHistory() async {
+    try {
+      final historyData = await _apiService.getSensorHistory();
+      if (historyData.isNotEmpty) {
+        // Merge with existing history, avoiding duplicates
+        for (final newData in historyData) {
+          if (!_sensorHistory.any((existing) =>
+              existing.timestamp == newData.timestamp)) {
+            _sensorHistory.add(newData);
+          }
+        }
+
+        // Sort by timestamp (newest first) and limit to 50 items
+        _sensorHistory.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        if (_sensorHistory.length > 50) {
+          _sensorHistory = _sensorHistory.sublist(0, 50);
+        }
+
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error fetching sensor history: $e');
+    }
+  }
+
   void _setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
@@ -280,9 +309,10 @@ class FireDetectionProvider extends ChangeNotifier {
       print('Skipping API calls since MQTT is connected');
     } else {
       print('Using API for data (MQTT not connected)');
-      // For API, fetch sensor data only, skip history to avoid HTML errors
+      // For API, fetch both current sensor data and history
       try {
         await _fetchCurrentSensorData();
+        await _fetchSensorHistory();
       } catch (e) {
         print('API error (expected if server is offline): $e');
         _error =
@@ -291,6 +321,17 @@ class FireDetectionProvider extends ChangeNotifier {
     }
 
     _setLoading(false);
+  }
+
+  // Dedicated method to refresh only history data
+  Future<void> refreshHistory() async {
+    await _fetchSensorHistory();
+  }
+
+  // Clear all history data
+  void clearHistory() {
+    _sensorHistory.clear();
+    notifyListeners();
   }
 
   // For testing: simulate receiving MQTT data focused on fire detection scenarios
