@@ -8,6 +8,7 @@ class SensorCard extends StatelessWidget {
   final IconData icon;
   final String? subtitle;
   final bool showDetails;
+  final Color? customColor;
 
   const SensorCard({
     super.key,
@@ -16,13 +17,15 @@ class SensorCard extends StatelessWidget {
     required this.icon,
     this.subtitle,
     this.showDetails = false,
+    this.customColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    final Color primaryColor = isActive ? AppTheme.errorColor : AppTheme.primaryGreen;
+    final Color primaryColor =
+        customColor ?? (isActive ? AppTheme.errorColor : AppTheme.primaryGreen);
     final String statusText = isActive ? 'DETECTED' : 'NORMAL';
-    
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -74,32 +77,28 @@ class SensorCard extends StatelessWidget {
                           color: primaryColor.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
-                          icon,
-                          size: 28,
-                          color: primaryColor,
-                        ),
+                        child: Icon(icon, size: 28, color: primaryColor),
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Divider
-                  Divider(
-                    color: AppTheme.dividerColor,
-                    thickness: 1,
-                  ),
-                  
+                  Divider(color: AppTheme.dividerColor, thickness: 1),
+
                   const SizedBox(height: 16),
-                  
+
                   // Status indicator and subtitle in a row or column based on showDetails
-                  if (showDetails) 
+                  if (showDetails)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: primaryColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(30),
@@ -127,7 +126,7 @@ class SensorCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                        
+
                         // Subtitle (if provided)
                         if (subtitle != null)
                           Text(
@@ -145,7 +144,10 @@ class SensorCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: primaryColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(30),
@@ -173,7 +175,7 @@ class SensorCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                        
+
                         // Subtitle (if provided)
                         if (subtitle != null) ...[
                           const SizedBox(height: 8),

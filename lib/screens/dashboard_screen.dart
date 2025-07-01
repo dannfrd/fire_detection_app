@@ -6,8 +6,6 @@ import '../providers/settings_provider.dart';
 import '../utils/app_theme.dart';
 import '../widgets/emergency_contacts_widget.dart';
 import '../widgets/fire_alert_widget.dart';
-import '../widgets/gas_level_gauge.dart';
-import '../widgets/realtime_gas_monitor.dart';
 import '../widgets/safety_rules_widget.dart';
 import '../widgets/sensor_card.dart';
 
@@ -34,8 +32,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           isSmallScreen
               ? 'Fire Detect'
               : isMobile
-                  ? 'Fire Detection'
-                  : 'Fire Detection Dashboard',
+              ? 'Fire Detection'
+              : 'Fire Detection Dashboard',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: isSmallScreen ? 18 : null,
@@ -48,8 +46,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             tooltip: 'Refresh Data',
             onPressed: () {
               // Get the provider without listening
-              final provider =
-                  Provider.of<FireDetectionProvider>(context, listen: false);
+              final provider = Provider.of<FireDetectionProvider>(
+                context,
+                listen: false,
+              );
               provider.refreshData();
             },
           ),
@@ -80,15 +80,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: Consumer<FireDetectionProvider>(
         builder: (context, provider, child) {
           print('=== UI REBUILD ===');
-          print('Gas Level in UI: ${provider.currentSensorData?.gasLevel} ppm');
+          print(
+            'Fire Detection Status in UI - Flame: ${provider.currentSensorData?.flameDetected}, Smoke: ${provider.currentSensorData?.smokeDetected}',
+          );
           print('Last Update: ${provider.currentSensorData?.timestamp}');
           print('MQTT Connected: ${provider.isMqttConnected}');
           print('================');
 
           if (provider.isLoading && provider.currentSensorData == null) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           final sensorData = provider.currentSensorData;
@@ -107,16 +107,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   final horizontalPadding = constraints.maxWidth < 360
                       ? 12.0
                       : constraints.maxWidth < 600
-                          ? 16.0
-                          : constraints.maxWidth < 900
-                              ? 20.0
-                              : 24.0;
+                      ? 16.0
+                      : constraints.maxWidth < 900
+                      ? 20.0
+                      : 24.0;
 
                   final verticalSpacing = constraints.maxWidth < 360
                       ? 12.0
                       : constraints.maxWidth < 600
-                          ? 16.0
-                          : 20.0;
+                      ? 16.0
+                      : 20.0;
 
                   return Padding(
                     padding: EdgeInsets.symmetric(
@@ -135,7 +135,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           builder: (context, constraints) {
                             final isSmallMobile = constraints.maxWidth < 360;
                             final isMobile = constraints.maxWidth < 600;
-                            final isTablet = constraints.maxWidth >= 600 &&
+                            final isTablet =
+                                constraints.maxWidth >= 600 &&
                                 constraints.maxWidth < 900;
                             final isDesktop = constraints.maxWidth >= 900;
 
@@ -194,7 +195,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                         SizedBox(height: verticalSpacing),
 
-                        // Gas Level and Fire Status Header
+                        // Fire Detection Status Header
                         _buildStatusHeader(sensorData),
 
                         SizedBox(height: verticalSpacing),
@@ -204,43 +205,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                         SizedBox(height: verticalSpacing),
 
-                        // Real-time Gas Level Monitoring Card
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            return RealtimeGasMonitor(
+                        // Fire Detection Status Card
+                        _buildFireDetectionCard(sensorData),
+
+                        SizedBox(height: verticalSpacing),
+
+                        // Fire Alert Widget with Animation - prioritize flame sensor
+                        Consumer<FireDetectionProvider>(
+                          builder: (context, provider, child) {
+                            final alertLevel = provider.currentAlertLevel;
+                            final sensorData = provider.currentSensorData;
+
+                            // Show alert if flame detected, smoke detected, or high temperature
+                            final shouldShowAlert =
+                                alertLevel == AlertLevel.critical ||
+                                alertLevel == AlertLevel.warning ||
+                                alertLevel == AlertLevel.temperature;
+
+                            if (!shouldShowAlert)
+                              return const SizedBox.shrink();
+
+                            return FireAlertWidget(
+                              isFireDetected:
+                                  sensorData?.flameDetected == true ||
+                                  sensorData?.smokeDetected == true,
+                              detectionSource: _getDetectionSource(sensorData),
                               gasLevel: sensorData?.gasLevel,
-                              isFireRisk: sensorData?.gasLevel != null &&
-                                  sensorData!.gasLevel! > 1000,
-                              compactMode: constraints.maxWidth <
-                                  400, // Compact mode for very small screens
+                              temperature: sensorData?.temperature,
+                              alertLevel: alertLevel,
                             );
                           },
                         ),
 
-                        SizedBox(height: verticalSpacing),
-
-                        // Fire Alert Widget with Animation - only show when needed
-                        if (sensorData?.isFireDetected == true ||
-                            sensorData?.smokeDetected == true ||
-                            sensorData?.flameDetected == true ||
-                            (sensorData?.gasLevel != null &&
-                                sensorData!.gasLevel! > 1000))
-                          FireAlertWidget(
-                            isFireDetected:
-                                sensorData?.isFireDetected == true ||
-                                    sensorData?.smokeDetected == true ||
-                                    sensorData?.flameDetected == true,
-                            detectionSource: _getDetectionSource(sensorData),
-                            gasLevel: sensorData?.gasLevel,
-                            temperature: sensorData?.temperature,
-                          ),
-
-                        if (sensorData?.isFireDetected == true ||
-                            sensorData?.smokeDetected == true ||
-                            sensorData?.flameDetected == true ||
-                            (sensorData?.gasLevel != null &&
-                                sensorData!.gasLevel! > 1000))
-                          SizedBox(height: verticalSpacing),
+                        // Add spacing only when alert is shown
+                        Consumer<FireDetectionProvider>(
+                          builder: (context, provider, child) {
+                            final alertLevel = provider.currentAlertLevel;
+                            final shouldShowAlert =
+                                alertLevel == AlertLevel.critical ||
+                                alertLevel == AlertLevel.warning ||
+                                alertLevel == AlertLevel.temperature;
+                            return shouldShowAlert
+                                ? SizedBox(height: verticalSpacing)
+                                : const SizedBox.shrink();
+                          },
+                        ),
 
                         // Safety Rules and Instructions Widget - adjust based on screen size
                         LayoutBuilder(
@@ -249,11 +258,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             return SafetyRulesWidget(
                               isFireDetected:
                                   sensorData?.isFireDetected == true ||
-                                      sensorData?.smokeDetected == true ||
-                                      sensorData?.flameDetected == true,
-                              isGasRisk: sensorData?.gasLevel != null &&
-                                  sensorData!.gasLevel! > 1000,
-                              gasLevel: sensorData?.gasLevel,
+                                  sensorData?.smokeDetected == true ||
+                                  sensorData?.flameDetected == true,
                               compactMode: isSmallScreen,
                             );
                           },
@@ -268,8 +274,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             return EmergencyContactsWidget(
                               isFireDetected:
                                   sensorData?.isFireDetected == true ||
-                                      sensorData?.smokeDetected == true ||
-                                      sensorData?.flameDetected == true,
+                                  sensorData?.smokeDetected == true ||
+                                  sensorData?.flameDetected == true,
                               compactMode: isSmallScreen,
                             );
                           },
@@ -309,10 +315,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Expanded(
             child: Text(
               errorMessage,
-              style: TextStyle(
-                color: AppTheme.errorColor,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: AppTheme.errorColor, fontSize: 14),
             ),
           ),
         ],
@@ -378,54 +381,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Widget _buildMainStatusCard(dynamic sensorData) {
-    final isFireDetected = sensorData?.isFireDetected ?? false;
-    final status = sensorData?.status ?? 'Unknown';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isFireDetected ? Colors.red.shade50 : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: isFireDetected ? Border.all(color: Colors.red, width: 2) : null,
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.shadowColor,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(
-            isFireDetected ? Icons.warning_rounded : Icons.check_circle_rounded,
-            size: 48,
-            color: isFireDetected ? Colors.red : AppTheme.primaryGreen,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            isFireDetected ? 'FIRE DETECTED!' : 'SYSTEM NORMAL',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: isFireDetected ? Colors.red : AppTheme.primaryGreen,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            status,
-            style: const TextStyle(
-              fontSize: 16,
-              color: AppTheme.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSensorGrid(dynamic sensorData) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -478,26 +433,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildSmallMobileSensorGrid(dynamic sensorData) {
     return Column(
       children: [
-        SensorCard(
-          title: 'Smoke',
-          isActive: sensorData?.smokeDetected ?? false,
-          icon: Icons.cloud_outlined,
+        // Flame sensor - most prominent
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: sensorData?.flameDetected == true
+                ? Border.all(color: Colors.red, width: 2)
+                : null,
+            boxShadow: sensorData?.flameDetected == true
+                ? [
+                    BoxShadow(
+                      color: Colors.red.withOpacity(0.3),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : null,
+          ),
+          child: SensorCard(
+            title: '🔥 Api',
+            isActive: sensorData?.flameDetected ?? false,
+            icon: Icons.local_fire_department_rounded,
+            customColor: sensorData?.flameDetected == true ? Colors.red : null,
+          ),
         ),
         const SizedBox(height: 8),
-        SensorCard(
-          title: 'Flame',
-          isActive: sensorData?.flameDetected ?? false,
-          icon: Icons.local_fire_department_outlined,
+
+        // Smoke sensor
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: sensorData?.smokeDetected == true
+                ? Border.all(color: Colors.orange, width: 2)
+                : null,
+          ),
+          child: SensorCard(
+            title: '💨 Asap',
+            isActive: sensorData?.smokeDetected ?? false,
+            icon: Icons.smoke_free_rounded,
+            customColor: sensorData?.smokeDetected == true
+                ? Colors.orange
+                : null,
+          ),
         ),
         const SizedBox(height: 8),
+
         SensorCard(
-          title: 'Gas Sensor',
+          title: '🌡️ Suhu',
           isActive:
-              sensorData?.gasLevel != null && (sensorData!.gasLevel! > 300),
-          icon: Icons.gas_meter_outlined,
-          subtitle: sensorData?.gasLevel != null
-              ? '${sensorData!.gasLevel} ppm'
+              sensorData?.temperature != null &&
+              (sensorData!.temperature! > 40),
+          icon: Icons.thermostat_rounded,
+          subtitle: sensorData?.temperature != null
+              ? '${sensorData!.temperature!.toStringAsFixed(1)}°C'
               : 'No data',
+          customColor:
+              sensorData?.temperature != null && (sensorData!.temperature! > 40)
+              ? Colors.orange
+              : null,
         ),
       ],
     );
@@ -527,13 +520,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const SizedBox(height: 8),
         SensorCard(
-          title: 'Gas Sensor',
+          title: '🌡️ Suhu',
           isActive:
-              sensorData?.gasLevel != null && (sensorData!.gasLevel! > 300),
-          icon: Icons.gas_meter_outlined,
-          subtitle: sensorData?.gasLevel != null
-              ? '${sensorData!.gasLevel} ppm'
+              sensorData?.temperature != null &&
+              (sensorData!.temperature! > 40),
+          icon: Icons.thermostat_rounded,
+          subtitle: sensorData?.temperature != null
+              ? '${sensorData!.temperature!.toStringAsFixed(1)}°C'
               : 'No data',
+          customColor:
+              sensorData?.temperature != null && (sensorData!.temperature! > 40)
+              ? Colors.orange
+              : null,
         ),
       ],
     );
@@ -560,13 +558,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: SensorCard(
-            title: 'Gas',
+            title: 'Suhu',
             isActive:
-                sensorData?.gasLevel != null && (sensorData!.gasLevel! > 1000),
-            icon: Icons.gas_meter_outlined,
-            subtitle: sensorData?.gasLevel != null
-                ? '${sensorData!.gasLevel} ppm'
+                sensorData?.temperature != null &&
+                (sensorData!.temperature! > 40),
+            icon: Icons.thermostat_outlined,
+            subtitle: sensorData?.temperature != null
+                ? '${sensorData!.temperature!.toStringAsFixed(1)}°C'
                 : 'No data',
+            customColor:
+                sensorData?.temperature != null &&
+                    (sensorData!.temperature! > 40)
+                ? Colors.orange
+                : null,
           ),
         ),
       ],
@@ -596,14 +600,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: SensorCard(
-            title: 'Gas',
+            title: 'Suhu',
             isActive:
-                sensorData?.gasLevel != null && (sensorData!.gasLevel! > 1000),
-            icon: Icons.gas_meter_outlined,
-            subtitle: sensorData?.gasLevel != null
-                ? '${sensorData!.gasLevel} ppm'
+                sensorData?.temperature != null &&
+                (sensorData!.temperature! > 40),
+            icon: Icons.thermostat_outlined,
+            subtitle: sensorData?.temperature != null
+                ? '${sensorData!.temperature!.toStringAsFixed(1)}°C'
                 : 'No data',
             showDetails: true,
+            customColor:
+                sensorData?.temperature != null &&
+                    (sensorData!.temperature! > 40)
+                ? Colors.orange
+                : null,
           ),
         ),
         if (sensorData?.temperature != null) ...[
@@ -611,7 +621,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Expanded(
             child: SensorCard(
               title: 'Temperature',
-              isActive: sensorData?.temperature != null &&
+              isActive:
+                  sensorData?.temperature != null &&
                   (sensorData!.temperature! > 35),
               icon: Icons.thermostat_outlined,
               subtitle: '${sensorData.temperature}°C',
@@ -623,197 +634,174 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildGasMonitoringCard(dynamic sensorData) {
-    final context = this.context;
-    final gasLevel = sensorData?.gasLevel ?? 0;
-
-    // Get the settings provider for thresholds
-    final settings = Provider.of<FireDetectionSettings>(context, listen: false);
+  Widget _buildFireDetectionCard(dynamic sensorData) {
+    final flameDetected = sensorData?.flameDetected ?? false;
+    final smokeDetected = sensorData?.smokeDetected ?? false;
+    final temperature = sensorData?.temperature ?? 0.0;
 
     Color statusColor;
     String statusText;
     String statusDescription;
+    IconData statusIcon;
 
-    // Use dynamic thresholds from settings
-    if (gasLevel < settings.warningThreshold) {
-      statusColor = Colors.green;
-      statusText = 'SAFE';
-      statusDescription = 'Gas levels are normal';
-    } else if (gasLevel < settings.criticalThreshold) {
-      statusColor = Colors.orange;
-      statusText = 'CAUTION';
-      statusDescription = 'Elevated gas levels detected';
-    } else {
+    if (flameDetected) {
       statusColor = Colors.red;
-      statusText = 'DANGER';
-      statusDescription = 'High gas levels - evacuate area';
+      statusText = 'KEBAKARAN TERDETEKSI';
+      statusDescription = 'Sensor api mendeteksi nyala api!';
+      statusIcon = Icons.local_fire_department_rounded;
+    } else if (smokeDetected) {
+      statusColor = Colors.orange;
+      statusText = 'ASAP TERDETEKSI';
+      statusDescription = 'Sensor asap mendeteksi adanya asap';
+      statusIcon = Icons.smoke_free_rounded;
+    } else if (temperature > 40) {
+      statusColor = Colors.orange.shade700;
+      statusText = 'SUHU TINGGI';
+      statusDescription =
+          'Suhu lingkungan tinggi: ${temperature.toStringAsFixed(1)}°C';
+      statusIcon = Icons.thermostat_rounded;
+    } else {
+      statusColor = AppTheme.primaryGreen;
+      statusText = 'AMAN';
+      statusDescription = 'Semua sensor kebakaran normal';
+      statusIcon = Icons.shield_rounded;
     }
 
-    // Also check temperature
-    if (sensorData?.temperature != null &&
-        sensorData.temperature >= settings.temperatureThreshold) {
-      // If temperature is high but gas levels are normal, show warning
-      if (statusColor == Colors.green) {
-        statusColor = Colors.orange;
-        statusText = 'CAUTION';
-        statusDescription = 'High temperature detected';
-      }
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Card(
+      elevation: 6,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.shadowColor,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        side: BorderSide(color: statusColor.withOpacity(0.3), width: 2),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.gas_meter_outlined,
-                size: 24,
-                color: AppTheme.primaryGreen,
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Gas Level Monitoring',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ],
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [statusColor.withOpacity(0.1), Colors.white],
           ),
-          const SizedBox(height: 20),
-
-          // Gas Level Gauge
-          Center(
-            child: GasLevelGauge(
-              gasLevel: sensorData?.gasLevel,
-              maxLevel: 3000,
-              unit: 'ppm',
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Status indicator
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: statusColor.withOpacity(0.3)),
-            ),
-            child: Column(
+        ),
+        child: Column(
+          children: [
+            Row(
               children: [
-                Text(
-                  statusText,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: statusColor,
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.2),
+                    shape: BoxShape.circle,
                   ),
+                  child: Icon(statusIcon, color: statusColor, size: 32),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  statusDescription,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: statusColor,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Status Deteksi Kebakaran',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        statusText,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: statusColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: statusColor.withOpacity(0.3)),
+              ),
+              child: Text(
+                statusDescription,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: statusColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Sensor status indicators
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSensorIndicator(
+                    'Api',
+                    flameDetected,
+                    Icons.local_fire_department_outlined,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildSensorIndicator(
+                    'Asap',
+                    smokeDetected,
+                    Icons.smoke_free_outlined,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildSensorIndicator(
+                    'Suhu',
+                    temperature > 40,
+                    Icons.thermostat_outlined,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildFireAlert(dynamic sensorData) {
+  Widget _buildSensorIndicator(String label, bool isActive, IconData icon) {
+    final color = isActive ? Colors.red : AppTheme.primaryGreen;
+
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.red, width: 2),
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
         children: [
-          Icon(
-            Icons.local_fire_department_rounded,
-            size: 48,
-            color: Colors.red,
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'FIRE ALERT',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.red,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Fire or smoke detected! Please evacuate immediately and contact emergency services.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.red,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Show which sensors are triggered
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (sensorData?.smokeDetected == true)
-                _buildAlertChip('Smoke Detected', Icons.cloud_outlined),
-              if (sensorData?.flameDetected == true)
-                _buildAlertChip(
-                    'Flame Detected', Icons.local_fire_department_outlined),
-              if (sensorData?.gasLevel != null && sensorData!.gasLevel! > 700)
-                _buildAlertChip('Gas Alert', Icons.gas_meter_outlined),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAlertChip(String label, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.red,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: Colors.white),
-          const SizedBox(width: 6),
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
               fontSize: 12,
+            ),
+          ),
+          Text(
+            isActive ? 'AKTIF' : 'NORMAL',
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -827,18 +815,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     List<String> sources = [];
 
-    if (sensorData.smokeDetected == true) {
-      sources.add('Sensor Asap');
-    }
-
+    // Priority 1: Flame sensor (PRIMARY fire detection)
     if (sensorData.flameDetected == true) {
       sources.add('Sensor Api');
     }
 
-    if (sensorData.gasLevel != null && sensorData.gasLevel > 2000) {
-      sources.add('Sensor Gas');
+    // Priority 2: Smoke sensor (Secondary fire indicator)
+    if (sensorData.smokeDetected == true) {
+      sources.add('Sensor Asap');
     }
 
+    // Priority 3: AI Analysis (if available)
     if (sensorData.aiAnalysis != null &&
         sensorData.aiAnalysis.toString().toLowerCase().contains('api')) {
       sources.add('Analisis AI');
@@ -850,7 +837,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildStatusHeader(dynamic sensorData) {
     final isFireDetected = sensorData?.isFireDetected ?? false;
-    final gasLevel = sensorData?.gasLevel ?? 0;
+    final temperature = sensorData?.temperature ?? 0.0;
 
     Color statusColor;
     String statusText;
@@ -860,9 +847,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       statusColor = Colors.red;
       statusText = 'KEBAKARAN TERDETEKSI';
       statusIcon = Icons.warning_rounded;
-    } else if (gasLevel > 1000) {
+    } else if (temperature > 45) {
       statusColor = Colors.orange;
-      statusText = 'KADAR GAS TINGGI';
+      statusText = 'SUHU TINGGI';
       statusIcon = Icons.warning_amber_rounded;
     } else {
       statusColor = AppTheme.primaryGreen;
@@ -877,26 +864,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final isMediumScreen = constraints.maxWidth < 600;
 
         // Adjust padding based on screen size
-        final verticalPadding =
-            isSmallScreen ? 12.0 : (isMediumScreen ? 16.0 : 20.0);
-        final horizontalPadding =
-            isSmallScreen ? 16.0 : (isMediumScreen ? 20.0 : 24.0);
+        final verticalPadding = isSmallScreen
+            ? 12.0
+            : (isMediumScreen ? 16.0 : 20.0);
+        final horizontalPadding = isSmallScreen
+            ? 16.0
+            : (isMediumScreen ? 20.0 : 24.0);
 
         // Adjust icon size based on screen size
         final iconSize = isSmallScreen ? 28.0 : (isMediumScreen ? 36.0 : 40.0);
         final iconPadding = isSmallScreen ? 12.0 : 16.0;
 
         // Adjust text sizes
-        final titleFontSize =
-            isSmallScreen ? 16.0 : (isMediumScreen ? 18.0 : 20.0);
-        final subtitleFontSize =
-            isSmallScreen ? 13.0 : (isMediumScreen ? 14.0 : 16.0);
+        final titleFontSize = isSmallScreen
+            ? 16.0
+            : (isMediumScreen ? 18.0 : 20.0);
+        final subtitleFontSize = isSmallScreen
+            ? 13.0
+            : (isMediumScreen ? 14.0 : 16.0);
         final subtitleIconSize = isSmallScreen ? 14.0 : 16.0;
 
         return Container(
           width: double.infinity,
           padding: EdgeInsets.symmetric(
-              vertical: verticalPadding, horizontal: horizontalPadding),
+            vertical: verticalPadding,
+            horizontal: horizontalPadding,
+          ),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -930,11 +923,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: statusColor.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
-                      statusIcon,
-                      size: iconSize,
-                      color: statusColor,
-                    ),
+                    child: Icon(statusIcon, size: iconSize, color: statusColor),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -955,32 +944,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               // Use responsive layout for the sensor data
               Container(
                 margin: EdgeInsets.only(
-                    top: isSmallScreen ? 8 : 12,
-                    left: iconSize + iconPadding * 2 + 16),
+                  top: isSmallScreen ? 8 : 12,
+                  left: iconSize + iconPadding * 2 + 16,
+                ),
                 child: isMediumScreen
                     ?
-                    // Stack vertically on small screens
-                    Column(
+                      // Stack vertically on small screens
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.gas_meter_outlined,
-                                size: subtitleIconSize,
-                                color: AppTheme.textSecondary,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Gas: ${gasLevel.toString()} ppm',
-                                style: TextStyle(
-                                  fontSize: subtitleFontSize,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppTheme.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
                           if (sensorData?.temperature != null) ...[
                             const SizedBox(height: 6),
                             Row(
@@ -1007,22 +979,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     // Layout horizontally on larger screens
                     : Row(
                         children: [
-                          Icon(
-                            Icons.gas_meter_outlined,
-                            size: subtitleIconSize,
-                            color: AppTheme.textSecondary,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Gas: ${gasLevel.toString()} ppm',
-                            style: TextStyle(
-                              fontSize: subtitleFontSize,
-                              fontWeight: FontWeight.w500,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
                           if (sensorData?.temperature != null) ...[
-                            const SizedBox(width: 16),
                             Icon(
                               Icons.thermostat_outlined,
                               size: subtitleIconSize,

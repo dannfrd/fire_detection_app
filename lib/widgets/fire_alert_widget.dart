@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import '../providers/settings_provider.dart';
 
 class FireAlertWidget extends StatefulWidget {
   final bool isFireDetected;
   final String? detectionSource;
   final int? gasLevel;
   final double? temperature;
+  final AlertLevel? alertLevel;
 
   const FireAlertWidget({
     super.key,
@@ -12,13 +14,15 @@ class FireAlertWidget extends StatefulWidget {
     this.detectionSource,
     this.gasLevel,
     this.temperature,
+    this.alertLevel,
   });
 
   @override
   State<FireAlertWidget> createState() => _FireAlertWidgetState();
 }
 
-class _FireAlertWidgetState extends State<FireAlertWidget> with SingleTickerProviderStateMixin {
+class _FireAlertWidgetState extends State<FireAlertWidget>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
@@ -30,21 +34,15 @@ class _FireAlertWidgetState extends State<FireAlertWidget> with SingleTickerProv
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-    
+
     _scaleAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    
+
     _opacityAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    
+
     _animationController.repeat(reverse: true);
   }
 
@@ -56,8 +54,43 @@ class _FireAlertWidgetState extends State<FireAlertWidget> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.isFireDetected) {
-      return const SizedBox.shrink();
+    // Determine alert properties based on alert level and detection
+    Color alertColor;
+    String alertTitle;
+    String alertMessage;
+    IconData alertIcon;
+
+    // Priority 1: Flame detected (always critical)
+    if (widget.detectionSource?.contains('Sensor Api') == true) {
+      alertColor = Colors.red;
+      alertTitle = '🔥 BAHAYA KEBAKARAN!';
+      alertMessage =
+          'Sensor api mendeteksi nyala api! Segera evakuasi area dan hubungi pemadam kebakaran!';
+      alertIcon = Icons.local_fire_department_rounded;
+    }
+    // Priority 2: Smoke detected
+    else if (widget.detectionSource?.contains('Sensor Asap') == true) {
+      alertColor = Colors.orange.shade800;
+      alertTitle = '💨 PERINGATAN ASAP!';
+      alertMessage =
+          'Asap terdeteksi! Waspada kemungkinan kebakaran. Periksa area sekitar dan bersiap evakuasi!';
+      alertIcon = Icons.smoke_free_rounded;
+    }
+    // Priority 3: Temperature alerts (high heat warning)
+    else if (widget.alertLevel == AlertLevel.temperature) {
+      alertColor = Colors.red.shade600;
+      alertTitle = '🌡️ SUHU TINGGI!';
+      alertMessage =
+          'Suhu lingkungan tinggi. Waspada kemungkinan risiko kebakaran. Pantau sensor api dengan ketat.';
+      alertIcon = Icons.thermostat_rounded;
+    }
+    // Default case
+    else {
+      alertColor = Colors.red;
+      alertTitle = '⚠️ PERINGATAN!';
+      alertMessage =
+          'Kondisi tidak normal terdeteksi. Periksa area sekitar dengan hati-hati.';
+      alertIcon = Icons.warning_rounded;
     }
 
     return AnimatedBuilder(
@@ -65,22 +98,19 @@ class _FireAlertWidgetState extends State<FireAlertWidget> with SingleTickerProv
       builder: (context, child) {
         return Transform.scale(
           scale: _scaleAnimation.value,
-          child: Opacity(
-            opacity: _opacityAnimation.value,
-            child: child,
-          ),
+          child: Opacity(opacity: _opacityAnimation.value, child: child),
         );
       },
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.red.shade50,
+          color: alertColor.withOpacity(0.1),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.red, width: 3),
+          border: Border.all(color: alertColor, width: 3),
           boxShadow: [
             BoxShadow(
-              color: Colors.red.withOpacity(0.3),
+              color: alertColor.withOpacity(0.3),
               blurRadius: 10,
               spreadRadius: 2,
               offset: const Offset(0, 2),
@@ -92,34 +122,33 @@ class _FireAlertWidgetState extends State<FireAlertWidget> with SingleTickerProv
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.local_fire_department_rounded,
-                  size: 36,
-                  color: Colors.red,
-                ),
+                Icon(alertIcon, size: 36, color: alertColor),
                 const SizedBox(width: 12),
-                Text(
-                  'PERINGATAN KEBAKARAN!',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
+                Expanded(
+                  child: Text(
+                    alertTitle,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: alertColor,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             Text(
-              'Api atau asap terdeteksi! Segera evakuasi area dan hubungi layanan darurat.',
+              alertMessage,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
-                color: Colors.red.shade800,
+                color: alertColor.withOpacity(0.8),
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // Detection details
             if (widget.detectionSource != null)
               Container(
@@ -137,40 +166,34 @@ class _FireAlertWidgetState extends State<FireAlertWidget> with SingleTickerProv
                       'Detail Deteksi:',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.red.shade800,
+                        color: alertColor,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Terdeteksi oleh: ${widget.detectionSource}',
-                      style: TextStyle(
-                        color: Colors.red.shade800,
-                      ),
+                      style: TextStyle(color: alertColor.withOpacity(0.8)),
                     ),
                     if (widget.gasLevel != null) ...[
                       const SizedBox(height: 4),
                       Text(
                         'Kadar Gas: ${widget.gasLevel} ppm',
-                        style: TextStyle(
-                          color: Colors.red.shade800,
-                        ),
+                        style: TextStyle(color: Colors.red.shade800),
                       ),
                     ],
                     if (widget.temperature != null) ...[
                       const SizedBox(height: 4),
                       Text(
                         'Suhu: ${widget.temperature}°C',
-                        style: TextStyle(
-                          color: Colors.red.shade800,
-                        ),
+                        style: TextStyle(color: Colors.red.shade800),
                       ),
                     ],
                   ],
                 ),
               ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Emergency button
             ElevatedButton(
               onPressed: () {
@@ -179,7 +202,10 @@ class _FireAlertWidgetState extends State<FireAlertWidget> with SingleTickerProv
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -191,9 +217,7 @@ class _FireAlertWidgetState extends State<FireAlertWidget> with SingleTickerProv
                   SizedBox(width: 8),
                   Text(
                     'HUBUNGI DARURAT',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ],
               ),

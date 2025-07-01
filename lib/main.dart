@@ -4,7 +4,10 @@ import 'package:provider/provider.dart';
 
 import 'providers/fire_detection_provider.dart';
 import 'providers/settings_provider.dart';
+import 'providers/mqtt_config_provider.dart';
 import 'screens/splash_screen.dart';
+import 'screens/mqtt_config_screen.dart';
+import 'screens/main_screen.dart';
 import 'utils/app_theme.dart';
 
 void main() async {
@@ -50,9 +53,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (context) => MqttConfigProvider()),
         ChangeNotifierProvider(create: (context) => FireDetectionSettings()),
-        ChangeNotifierProxyProvider<FireDetectionSettings,
-            FireDetectionProvider>(
+        ChangeNotifierProxyProvider<
+          FireDetectionSettings,
+          FireDetectionProvider
+        >(
           create: (context) => FireDetectionProvider(),
           update: (context, settings, previous) {
             final provider = previous ?? FireDetectionProvider();
@@ -65,6 +71,10 @@ class MyApp extends StatelessWidget {
         title: 'Agrotech Fire Detection',
         theme: AppTheme.lightTheme,
         home: const SplashScreen(),
+        routes: {
+          '/mqtt-config': (context) => const MqttConfigScreen(),
+          '/main': (context) => const MainScreen(),
+        },
         debugShowCheckedModeBanner: false,
       ),
     );

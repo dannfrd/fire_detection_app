@@ -4,42 +4,28 @@ import '../utils/app_theme.dart';
 
 class SafetyRulesWidget extends StatelessWidget {
   final bool isFireDetected;
-  final bool isGasRisk;
-  final int? gasLevel;
   final bool compactMode;
 
   const SafetyRulesWidget({
-    super.key, 
+    super.key,
     required this.isFireDetected,
-    this.isGasRisk = false,
-    this.gasLevel,
     this.compactMode = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Tentukan jenis bahaya
-    final bool isHighGasLevel = gasLevel != null && gasLevel! > 2000;
-    final bool isMediumGasLevel = gasLevel != null && gasLevel! > 1000;
-    
     // Menentukan tipe petunjuk keselamatan yang ditampilkan
     Widget rulesContent;
-    
+
     if (isFireDetected) {
       rulesContent = _buildFireSafetyRules(compactMode);
-    } else if (isHighGasLevel) {
-      rulesContent = _buildHighGasSafetyRules(compactMode);
-    } else if (isMediumGasLevel || isGasRisk) {
-      rulesContent = _buildMediumGasSafetyRules(compactMode);
     } else {
       rulesContent = _buildPreventativeMeasures(compactMode);
     }
-    
+
     return Card(
       elevation: compactMode ? 2 : 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: EdgeInsets.all(compactMode ? 12 : 16),
         child: Column(
@@ -48,12 +34,8 @@ class SafetyRulesWidget extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  isFireDetected 
-                      ? Icons.shield
-                      : Icons.security,
-                  color: isFireDetected 
-                      ? Colors.red
-                      : AppTheme.primaryGreen,
+                  isFireDetected ? Icons.shield : Icons.security,
+                  color: isFireDetected ? Colors.red : AppTheme.primaryGreen,
                   size: 24,
                 ),
                 const SizedBox(width: 12),
@@ -74,7 +56,7 @@ class SafetyRulesWidget extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildFireSafetyRules(bool compactMode) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -118,108 +100,25 @@ class SafetyRulesWidget extends StatelessWidget {
       ],
     );
   }
-  
-  Widget _buildHighGasSafetyRules(bool compactMode) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildAlertBox(
-          'PERINGATAN GAS BERBAHAYA',
-          'Kadar gas tinggi terdeteksi! Segera ambil tindakan.',
-          Colors.deepOrange,
-        ),
-        const SizedBox(height: 16),
-        _buildRuleItem(
-          '1. Matikan Sumber Gas',
-          'Jika memungkinkan, matikan sumber gas utama dengan aman.',
-          Icons.report_off,
-          isHighPriority: true,
-        ),
-        _buildRuleItem(
-          '2. Hindari Menyalakan Api atau Listrik',
-          'Jangan nyalakan korek api, saklar listrik, atau perangkat yang dapat memicu percikan.',
-          Icons.highlight_off,
-          isHighPriority: true,
-        ),
-        _buildRuleItem(
-          '3. Buka Jendela dan Pintu',
-          'Tingkatkan ventilasi untuk mengurangi konsentrasi gas.',
-          Icons.window,
-          isHighPriority: true,
-        ),
-        _buildRuleItem(
-          '4. Evakuasi Area',
-          'Keluar dari area dengan segera. Jangan kembali sampai aman.',
-          Icons.directions_run,
-          isHighPriority: true,
-        ),
-        _buildRuleItem(
-          '5. Hubungi Teknisi Gas',
-          'Setelah berada di tempat aman, hubungi teknisi gas profesional.',
-          Icons.phone,
-          isHighPriority: true,
-        ),
-      ],
-    );
-  }
-  
-  Widget _buildMediumGasSafetyRules(bool compactMode) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildAlertBox(
-          'PERHATIAN - KADAR GAS MENINGKAT',
-          'Tingkatkan kewaspadaan dan perhatikan tindakan pencegahan.',
-          Colors.orange,
-        ),
-        const SizedBox(height: 16),
-        _buildRuleItem(
-          '1. Periksa Sumber Gas',
-          'Pastikan semua peralatan gas dimatikan dengan benar dan tidak bocor.',
-          Icons.search,
-        ),
-        _buildRuleItem(
-          '2. Tingkatkan Ventilasi',
-          'Buka jendela dan pintu untuk meningkatkan sirkulasi udara.',
-          Icons.air,
-        ),
-        _buildRuleItem(
-          '3. Hindari Menyalakan Api',
-          'Jangan menyalakan korek api atau merokok di area tersebut.',
-          Icons.smoke_free,
-        ),
-        _buildRuleItem(
-          '4. Monitor Tingkat Gas',
-          'Perhatikan tingkat gas dan siap untuk evakuasi jika meningkat.',
-          Icons.visibility,
-        ),
-        _buildRuleItem(
-          '5. Persiapkan Evakuasi',
-          'Jika tingkat gas terus naik, bersiaplah untuk meninggalkan area.',
-          Icons.exit_to_app,
-        ),
-      ],
-    );
-  }
-  
+
   Widget _buildPreventativeMeasures(bool compactMode) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildAlertBox(
-          'TINDAKAN PENCEGAHAN',
-          'Perhatikan langkah-langkah pencegahan kebakaran dan kebocoran gas.',
+          'TINDAKAN PENCEGAHAN KEBAKARAN',
+          'Perhatikan langkah-langkah pencegahan kebakaran untuk keamanan maksimal.',
           AppTheme.primaryGreen,
         ),
         const SizedBox(height: 16),
         _buildRuleItem(
-          '1. Periksa Alat Gas Secara Berkala',
-          'Lakukan pemeriksaan rutin pada semua peralatan gas untuk menghindari kebocoran.',
+          '1. Periksa Detektor Api dan Asap',
+          'Lakukan pemeriksaan rutin pada sensor api dan asap, pastikan berfungsi dengan baik.',
           Icons.check_circle_outline,
         ),
         _buildRuleItem(
-          '2. Pasang Detektor Gas dan Asap',
-          'Gunakan detektor gas dan asap di lokasi strategis dan periksa baterai secara berkala.',
+          '2. Pasang Detektor Kebakaran',
+          'Gunakan detektor api dan asap di lokasi strategis dan periksa baterai secara berkala.',
           Icons.sensors,
         ),
         _buildRuleItem(
@@ -240,7 +139,7 @@ class SafetyRulesWidget extends StatelessWidget {
       ],
     );
   }
-  
+
   Widget _buildAlertBox(String title, String description, Color color) {
     return Container(
       width: double.infinity,
@@ -264,17 +163,19 @@ class SafetyRulesWidget extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             description,
-            style: TextStyle(
-              fontSize: 14,
-              color: color.withOpacity(0.8),
-            ),
+            style: TextStyle(fontSize: 14, color: color.withOpacity(0.8)),
           ),
         ],
       ),
     );
   }
-  
-  Widget _buildRuleItem(String title, String description, IconData icon, {bool isHighPriority = false}) {
+
+  Widget _buildRuleItem(
+    String title,
+    String description,
+    IconData icon, {
+    bool isHighPriority = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -283,7 +184,9 @@ class SafetyRulesWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isHighPriority ? Colors.red.withOpacity(0.1) : AppTheme.primaryGreen.withOpacity(0.1),
+              color: isHighPriority
+                  ? Colors.red.withOpacity(0.1)
+                  : AppTheme.primaryGreen.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -302,7 +205,9 @@ class SafetyRulesWidget extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: isHighPriority ? Colors.red.shade700 : AppTheme.textPrimary,
+                    color: isHighPriority
+                        ? Colors.red.shade700
+                        : AppTheme.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),

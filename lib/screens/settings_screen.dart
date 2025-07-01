@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/settings_provider.dart';
+import '../providers/mqtt_config_provider.dart';
 import '../screens/contact_support_screen.dart';
 import '../screens/privacy_policy_screen.dart';
 import '../screens/terms_of_service_screen.dart';
+import '../screens/mqtt_config_screen.dart';
 import '../utils/app_theme.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -26,7 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   double _warningThreshold = 1000;
   double _criticalThreshold = 2000;
   double _temperatureThreshold = 40;
-  
+
   // Reference to the settings provider
   late FireDetectionSettings _settingsProvider;
 
@@ -44,7 +46,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // Update local state from provider
     _updateLocalStateFromProvider();
   }
-  
+
   void _updateLocalStateFromProvider() {
     setState(() {
       _fireAlertsEnabled = _settingsProvider.fireAlertsEnabled;
@@ -74,9 +76,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Alert Thresholds Section
           _buildSectionHeader('Alert Thresholds'),
           _buildThresholdsCard(),
-          
+
           const SizedBox(height: 20),
-          
+
           _buildSectionHeader('App Information'),
           Container(
             decoration: BoxDecoration(
@@ -145,7 +147,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: const Row(
                     children: [
                       Icon(
-                        Icons.info_outline_rounded, 
+                        Icons.info_outline_rounded,
                         color: Colors.blue,
                         size: 20,
                       ),
@@ -153,10 +155,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Expanded(
                         child: Text(
                           'This app helps detect and monitor potential fire risks in agricultural environments.',
-                          style: TextStyle(
-                            color: Colors.blue,
-                            fontSize: 13,
-                          ),
+                          style: TextStyle(color: Colors.blue, fontSize: 13),
                         ),
                       ),
                     ],
@@ -165,9 +164,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Notification Settings
           _buildSectionHeader('Notification Settings'),
           Container(
@@ -195,7 +194,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     });
                     _saveNotificationSettings();
                     _showSettingUpdatedSnackbar(
-                      value ? 'Fire alerts enabled' : 'Fire alerts disabled'
+                      value ? 'Fire alerts enabled' : 'Fire alerts disabled',
                     );
                   },
                 ),
@@ -211,7 +210,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     });
                     _saveNotificationSettings();
                     _showSettingUpdatedSnackbar(
-                      value ? 'Warning alerts enabled' : 'Warning alerts disabled'
+                      value
+                          ? 'Warning alerts enabled'
+                          : 'Warning alerts disabled',
                     );
                   },
                 ),
@@ -227,16 +228,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     });
                     _saveNotificationSettings();
                     _showSettingUpdatedSnackbar(
-                      value ? 'System updates enabled' : 'System updates disabled'
+                      value
+                          ? 'System updates enabled'
+                          : 'System updates disabled',
                     );
                   },
                 ),
               ],
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Map Settings
           _buildSectionHeader('Map Settings'),
           Container(
@@ -264,7 +267,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     });
                     _saveMapSettings();
                     _showSettingUpdatedSnackbar(
-                      value ? 'Location display enabled' : 'Location display disabled'
+                      value
+                          ? 'Location display enabled'
+                          : 'Location display disabled',
                     );
                   },
                 ),
@@ -280,16 +285,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     });
                     _saveMapSettings();
                     _showSettingUpdatedSnackbar(
-                      value ? 'Map auto-refresh enabled' : 'Map auto-refresh disabled'
+                      value
+                          ? 'Map auto-refresh enabled'
+                          : 'Map auto-refresh disabled',
                     );
                   },
                 ),
               ],
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
+          // MQTT Configuration Section
+          _buildSectionHeader('Connection'),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.shadowColor,
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Consumer<MqttConfigProvider>(
+                  builder: (context, mqttConfig, child) {
+                    return _buildListTileWithCustomTrailing(
+                      'MQTT Configuration',
+                      mqttConfig.isConfigured
+                          ? 'Host: ${mqttConfig.host}:${mqttConfig.port}'
+                          : 'Configure MQTT connection',
+                      Icons.settings_ethernet_rounded,
+                      () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const MqttConfigScreen(),
+                          ),
+                        );
+                      },
+                      mqttConfig.isConfigured
+                          ? Icon(
+                              Icons.check_circle,
+                              color: Colors.green,
+                              size: 20,
+                            )
+                          : Icon(Icons.warning, color: Colors.orange, size: 20),
+                    );
+                  },
+                ),
+                const Divider(height: 1, indent: 70),
+                _buildListTile(
+                  'Reset MQTT Settings',
+                  'Clear all MQTT configuration',
+                  Icons.refresh_rounded,
+                  () {
+                    _showResetMqttConfirmation();
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
           // About Section
           _buildSectionHeader('About'),
           Container(
@@ -313,7 +377,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const PrivacyPolicyScreen(),
+                      ),
                     );
                   },
                 ),
@@ -325,7 +391,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const TermsOfServiceScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const TermsOfServiceScreen(),
+                      ),
                     );
                   },
                 ),
@@ -337,24 +405,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const ContactSupportScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const ContactSupportScreen(),
+                      ),
                     );
                   },
                 ),
               ],
             ),
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           // App version footer
           const Center(
             child: Text(
               '© 2025 Agrotech Fire Detection',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppTheme.textSecondary,
-              ),
+              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
             ),
           ),
           const SizedBox(height: 16),
@@ -395,10 +462,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(
-          fontSize: 14,
-          color: AppTheme.textSecondary,
-        ),
+        style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
       ),
       secondary: Container(
         padding: const EdgeInsets.all(8),
@@ -406,10 +470,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           color: AppTheme.primaryGreen.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(
-          icon,
-          color: AppTheme.primaryGreen,
-        ),
+        child: Icon(icon, color: AppTheme.primaryGreen),
       ),
       value: initialValue,
       onChanged: onChanged,
@@ -435,10 +496,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(
-          fontSize: 14,
-          color: AppTheme.textSecondary,
-        ),
+        style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
       ),
       leading: Container(
         padding: const EdgeInsets.all(8),
@@ -446,10 +504,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           color: AppTheme.primaryGreen.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(
-          icon,
-          color: AppTheme.primaryGreen,
-        ),
+        child: Icon(icon, color: AppTheme.primaryGreen),
       ),
       trailing: const Icon(
         Icons.chevron_right_rounded,
@@ -483,10 +538,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 const Text(
                   'Gas Level Thresholds',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 // Reset button
                 IconButton(
@@ -504,13 +556,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 6),
             const Text(
               'Adjust when alerts should be triggered based on gas level readings.',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
-              ),
+              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
             ),
             const SizedBox(height: 20),
-            
+
             // Warning level slider
             _buildLabeledSlider(
               label: 'Warning Level',
@@ -530,9 +579,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 });
               },
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Critical level slider
             _buildLabeledSlider(
               label: 'Critical Level',
@@ -548,22 +597,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 });
               },
             ),
-            
+
             const Divider(height: 32),
-            
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
                   'Temperature Threshold',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 // Info icon with tooltip
                 Tooltip(
-                  message: 'Temperature above this level may indicate fire risk',
+                  message:
+                      'Temperature above this level may indicate fire risk',
                   triggerMode: TooltipTriggerMode.tap,
                   showDuration: const Duration(seconds: 2),
                   decoration: BoxDecoration(
@@ -582,13 +629,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 6),
             const Text(
               'Temperature above this level may indicate fire risk.',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
-              ),
+              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
             ),
             const SizedBox(height: 20),
-            
+
             // Temperature threshold slider
             _buildLabeledSlider(
               label: 'High Temperature',
@@ -604,9 +648,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 });
               },
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Save button
             ElevatedButton(
               onPressed: _saveThresholdSettings,
@@ -620,9 +664,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               child: const Text(
                 'Save Threshold Settings',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -649,10 +691,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Text(
               label,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -698,7 +737,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await _settingsProvider.setFireAlertsEnabled(_fireAlertsEnabled);
       await _settingsProvider.setWarningAlertsEnabled(_warningAlertsEnabled);
       await _settingsProvider.setSystemUpdatesEnabled(_systemUpdatesEnabled);
-      
+
       debugPrint('Notification settings saved successfully via provider');
     } catch (e) {
       debugPrint('Error saving notification settings: $e');
@@ -709,7 +748,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       await _settingsProvider.setShowMyLocationEnabled(_showMyLocationEnabled);
       await _settingsProvider.setAutoRefreshMapEnabled(_autoRefreshMapEnabled);
-      
+
       debugPrint('Map settings saved successfully via provider');
     } catch (e) {
       debugPrint('Error saving map settings: $e');
@@ -742,7 +781,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         criticalThreshold: _criticalThreshold,
         temperatureThreshold: _temperatureThreshold,
       );
-      
+
       debugPrint('Threshold settings saved successfully via provider');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -771,7 +810,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _criticalThreshold = 2000.0;
       _temperatureThreshold = 40.0;
     });
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Threshold settings reset to default values'),
@@ -779,6 +818,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
         behavior: SnackBarBehavior.floating,
         duration: Duration(seconds: 2),
       ),
+    );
+  }
+
+  Widget _buildListTileWithCustomTrailing(
+    String title,
+    String subtitle,
+    IconData icon,
+    VoidCallback onTap,
+    Widget trailing,
+  ) {
+    return ListTile(
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          color: AppTheme.textPrimary,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+      ),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryGreen.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: AppTheme.primaryGreen),
+      ),
+      trailing: trailing,
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    );
+  }
+
+  void _showResetMqttConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Reset MQTT Configuration'),
+          content: const Text(
+            'Are you sure you want to reset all MQTT settings? This will clear your broker configuration and you will need to set it up again.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                final mqttConfig = Provider.of<MqttConfigProvider>(
+                  context,
+                  listen: false,
+                );
+                await mqttConfig.resetConfig();
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('MQTT configuration has been reset'),
+                      backgroundColor: AppTheme.primaryGreen,
+                      behavior: SnackBarBehavior.floating,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Reset'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

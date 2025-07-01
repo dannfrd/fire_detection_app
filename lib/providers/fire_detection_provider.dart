@@ -122,7 +122,9 @@ class FireDetectionProvider extends ChangeNotifier {
     _mqttSubscription = _mqttService.sensorDataStream.listen(
       (sensorData) {
         print('=== PROVIDER RECEIVED DATA ===');
-        print('Gas Level: ${sensorData.gasLevel} ppm');
+        print(
+          'Fire Detection Status - Flame: ${sensorData.flameDetected}, Smoke: ${sensorData.smokeDetected}',
+        );
         print('Smoke: ${sensorData.smokeDetected}');
         print('Flame: ${sensorData.flameDetected}');
         print('Temperature: ${sensorData.temperature}°C');
@@ -174,8 +176,9 @@ class FireDetectionProvider extends ChangeNotifier {
 
   void _startMqttConnectionChecker() {
     _mqttConnectionCheckTimer?.cancel();
-    _mqttConnectionCheckTimer =
-        Timer.periodic(const Duration(seconds: 30), (timer) async {
+    _mqttConnectionCheckTimer = Timer.periodic(const Duration(seconds: 30), (
+      timer,
+    ) async {
       final isConnected = _mqttService.isConnected;
 
       if (!isConnected && _isMqttConnected) {
@@ -233,9 +236,11 @@ class FireDetectionProvider extends ChangeNotifier {
     );
 
     // Add to locations if not already present
-    if (!_fireLocations.any((loc) =>
-        loc.latitude == newLocation.latitude &&
-        loc.longitude == newLocation.longitude)) {
+    if (!_fireLocations.any(
+      (loc) =>
+          loc.latitude == newLocation.latitude &&
+          loc.longitude == newLocation.longitude,
+    )) {
       _fireLocations.add(newLocation);
       notifyListeners();
     }
@@ -289,7 +294,9 @@ class FireDetectionProvider extends ChangeNotifier {
         _mqttService.publishMessage('kelompok4/commands', 'request_data');
         _mqttService.publishMessage('kelompok4', 'refresh');
         _mqttService.publishMessage(
-            'kelompok4/commands/refresh', 'request_data');
+          'kelompok4/commands/refresh',
+          'request_data',
+        );
         print('Published refresh requests to MQTT');
       } catch (e) {
         print('Error publishing refresh command: $e');
@@ -312,43 +319,52 @@ class FireDetectionProvider extends ChangeNotifier {
     _setLoading(false);
   }
 
-  // For testing: simulate receiving MQTT data with more realistic scenarios
+  // For testing: simulate receiving MQTT data focused on fire detection scenarios
   void simulateMqttData() {
     final random = Random();
 
-    // Generate more realistic sensor values matching ESP32 ADC range (0-4095)
-    // MQ-135 typically shows values around 100-300 in clean air, 1000+ for gas detection
-    final baseGasLevel = _currentSensorData?.gasLevel ?? 800;
-    // Generate values between -400 and +400 from base, with ESP32 ADC range in mind
-    final newGasLevel =
-        (baseGasLevel + (random.nextInt(800) - 400)).clamp(100, 4000);
-
+    // Generate realistic temperature values
     final baseTemp = _currentSensorData?.temperature ?? 28.0;
-    final newTemp =
-        (baseTemp + (random.nextDouble() * 6 - 3)).clamp(15.0, 45.0);
+    final newTemp = (baseTemp + (random.nextDouble() * 6 - 3)).clamp(
+      15.0,
+      60.0, // Allow higher temperatures for fire scenarios
+    );
 
     final baseHumidity = _currentSensorData?.humidity ?? 65.0;
-    final newHumidity =
-        (baseHumidity + (random.nextDouble() * 10 - 5)).clamp(30.0, 90.0);
+    final newHumidity = (baseHumidity + (random.nextDouble() * 10 - 5)).clamp(
+      30.0,
+      90.0,
+    );
 
-    // Simulate different scenarios based on gas level - adjusted for ESP32 ADC values
+    // Keep gas level for compatibility but don't use it for fire detection logic
+    final baseGasLevel = _currentSensorData?.gasLevel ?? 800;
+    final newGasLevel = (baseGasLevel + (random.nextInt(800) - 400)).clamp(
+      100,
+      4000,
+    );
+
+    // Fire detection scenarios focused on flame and smoke sensors
     bool smokeDetected = false;
     bool flameDetected = false;
 
-    if (newGasLevel > 2000) {
-      // High gas level scenario - ESP32 ADC values are higher
-      smokeDetected = random.nextBool();
-      flameDetected = newGasLevel > 3000 ? random.nextBool() : false;
-    } else if (newGasLevel > 1500) {
-      // Medium gas level scenario
-      smokeDetected = random.nextDouble() < 0.3; // 30% chance
+    // Scenario 1: Fire detected by flame sensor (primary trigger)
+    if (random.nextDouble() < 0.15) {
+      // 15% chance of flame detection
+      flameDetected = true;
+      smokeDetected =
+          random.nextDouble() < 0.8; // 80% chance smoke also detected
     }
-
-    // High temperature can also trigger alerts
-    if (newTemp > 35) {
-      smokeDetected = smokeDetected || (random.nextDouble() < 0.4);
+    // Scenario 2: Smoke detected without flame (early warning)
+    else if (random.nextDouble() < 0.25) {
+      // 25% chance of smoke only
+      smokeDetected = true;
+      flameDetected = false;
+    }
+    // Scenario 3: High temperature scenarios
+    else if (newTemp > 40) {
+      smokeDetected = random.nextDouble() < 0.4; // 40% chance
       flameDetected =
-          flameDetected || (newTemp > 40 && random.nextDouble() < 0.3);
+          newTemp > 50 && random.nextDouble() < 0.6; // 60% chance if very hot
     }
 
     final mockData = SensorData(
@@ -389,10 +405,11 @@ class FireDetectionProvider extends ChangeNotifier {
     notifyListeners();
 
     print(
-        'Simulated MQTT data generated - Gas: ${newGasLevel}ppm, Temp: ${newTemp.toStringAsFixed(1)}°C, Smoke: $smokeDetected, Flame: $flameDetected');
+      'Simulated MQTT data generated - Flame: $flameDetected, Smoke: $smokeDetected, Temp: ${newTemp.toStringAsFixed(1)}°C',
+    );
   }
 
-  // Evaluate sensor data against thresholds to determine alert level
+  // Evaluate sensor data for fire detection (flame sensor priority)
   void _evaluateAlertLevels(SensorData sensorData) {
     // Default to normal if no settings available
     if (_settings == null) {
@@ -400,22 +417,28 @@ class FireDetectionProvider extends ChangeNotifier {
       return;
     }
 
-    // Check gas level against thresholds
-    if (sensorData.gasLevel != null &&
-        sensorData.gasLevel! >= _settings!.criticalThreshold) {
+    // Fire detection priority: Focus on flame sensor ONLY
+    if (sensorData.flameDetected) {
       _currentAlertLevel = AlertLevel.critical;
-    } else if (sensorData.gasLevel != null &&
-        sensorData.gasLevel! >= _settings!.warningThreshold) {
-      _currentAlertLevel = AlertLevel.warning;
+      print('🔥 FLAME DETECTED - CRITICAL FIRE ALERT!');
     }
-    // Check temperature against threshold
+    // Secondary: Smoke detection as backup indicator
+    else if (sensorData.smokeDetected) {
+      _currentAlertLevel = AlertLevel.warning;
+      print('💨 SMOKE DETECTED - Fire risk warning');
+    }
+    // Temperature monitoring as additional context only
     else if (sensorData.temperature != null &&
         sensorData.temperature! >= _settings!.temperatureThreshold) {
       _currentAlertLevel = AlertLevel.temperature;
+      print(
+        '🌡️ HIGH TEMPERATURE - ${sensorData.temperature}°C (elevated risk)',
+      );
     }
-    // Default to normal if no thresholds exceeded
+    // All clear - no fire indicators
     else {
       _currentAlertLevel = AlertLevel.normal;
+      print('✅ Fire sensors normal - No fire detected');
     }
 
     // Update UI
