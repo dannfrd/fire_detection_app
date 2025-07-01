@@ -7,10 +7,6 @@ class FireDetectionSettings with ChangeNotifier {
   bool _warningAlertsEnabled = true;
   bool _systemUpdatesEnabled = false;
 
-  // Map settings
-  bool _showMyLocationEnabled = true;
-  bool _autoRefreshMapEnabled = true;
-
   // Gas level thresholds with default values
   double _warningThreshold = 1000.0;
   double _criticalThreshold = 2000.0;
@@ -28,8 +24,6 @@ class FireDetectionSettings with ChangeNotifier {
   bool get fireAlertsEnabled => _fireAlertsEnabled;
   bool get warningAlertsEnabled => _warningAlertsEnabled;
   bool get systemUpdatesEnabled => _systemUpdatesEnabled;
-  bool get showMyLocationEnabled => _showMyLocationEnabled;
-  bool get autoRefreshMapEnabled => _autoRefreshMapEnabled;
   double get warningThreshold => _warningThreshold;
   double get criticalThreshold => _criticalThreshold;
   double get temperatureThreshold => _temperatureThreshold;
@@ -57,18 +51,17 @@ class FireDetectionSettings with ChangeNotifier {
       _warningAlertsEnabled = prefs.getBool('warningAlertsEnabled') ?? true;
       _systemUpdatesEnabled = prefs.getBool('systemUpdatesEnabled') ?? false;
 
-      // Load map settings
-      _showMyLocationEnabled = prefs.getBool('showMyLocation') ?? true;
-      _autoRefreshMapEnabled = prefs.getBool('autoRefreshMap') ?? true;
-
       // Load threshold settings
-      _warningThreshold = prefs.getDouble('warningThreshold') ??
+      _warningThreshold =
+          prefs.getDouble('warningThreshold') ??
           _minWarningThreshold +
               (_maxWarningThreshold - _minWarningThreshold) / 2;
-      _criticalThreshold = prefs.getDouble('criticalThreshold') ??
+      _criticalThreshold =
+          prefs.getDouble('criticalThreshold') ??
           _minCriticalThreshold +
               (_maxCriticalThreshold - _minCriticalThreshold) / 2;
-      _temperatureThreshold = prefs.getDouble('temperatureThreshold') ??
+      _temperatureThreshold =
+          prefs.getDouble('temperatureThreshold') ??
           _minTemperatureThreshold +
               (_maxTemperatureThreshold - _minTemperatureThreshold) / 4;
 
@@ -80,11 +73,14 @@ class FireDetectionSettings with ChangeNotifier {
 
   // Reset to default threshold values
   Future<void> resetThresholds() async {
-    _warningThreshold = _minWarningThreshold +
+    _warningThreshold =
+        _minWarningThreshold +
         (_maxWarningThreshold - _minWarningThreshold) / 2;
-    _criticalThreshold = _minCriticalThreshold +
+    _criticalThreshold =
+        _minCriticalThreshold +
         (_maxCriticalThreshold - _minCriticalThreshold) / 2;
-    _temperatureThreshold = _minTemperatureThreshold +
+    _temperatureThreshold =
+        _minTemperatureThreshold +
         (_maxTemperatureThreshold - _minTemperatureThreshold) / 4;
 
     await _saveThresholdSettings();
@@ -139,18 +135,6 @@ class FireDetectionSettings with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setShowMyLocationEnabled(bool value) async {
-    _showMyLocationEnabled = value;
-    await _saveMapSettings();
-    notifyListeners();
-  }
-
-  Future<void> setAutoRefreshMapEnabled(bool value) async {
-    _autoRefreshMapEnabled = value;
-    await _saveMapSettings();
-    notifyListeners();
-  }
-
   Future<void> setThresholds({
     double? warningThreshold,
     double? criticalThreshold,
@@ -192,16 +176,6 @@ class FireDetectionSettings with ChangeNotifier {
     }
   }
 
-  Future<void> _saveMapSettings() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('showMyLocation', _showMyLocationEnabled);
-      await prefs.setBool('autoRefreshMap', _autoRefreshMapEnabled);
-    } catch (e) {
-      debugPrint('Error saving map settings: $e');
-    }
-  }
-
   Future<void> _saveThresholdSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -215,9 +189,4 @@ class FireDetectionSettings with ChangeNotifier {
 }
 
 // Enum for alert levels
-enum AlertLevel {
-  normal,
-  warning,
-  temperature,
-  critical,
-}
+enum AlertLevel { normal, warning, temperature, critical }

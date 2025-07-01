@@ -17,7 +17,6 @@ class FireDetectionProvider extends ChangeNotifier {
 
   SensorData? _currentSensorData;
   List<SensorData> _sensorHistory = [];
-  List<FireLocation> _fireLocations = [];
   bool _isLoading = false;
   String? _error;
   bool _isMqttConnected = false;
@@ -29,11 +28,17 @@ class FireDetectionProvider extends ChangeNotifier {
   // Getters
   SensorData? get currentSensorData => _currentSensorData;
   List<SensorData> get sensorHistory => _sensorHistory;
-  List<FireLocation> get fireLocations => _fireLocations;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isMqttConnected => _isMqttConnected;
   AlertLevel get currentAlertLevel => _currentAlertLevel;
+
+  // Method to control Arduino system
+  void setSystemActive(bool active) {
+    if (_isMqttConnected) {
+      _mqttService.sendControlCommand(active);
+    }
+  }
 
   FireDetectionProvider() {
     _initializeServices();
@@ -147,13 +152,6 @@ class FireDetectionProvider extends ChangeNotifier {
           }
         }
 
-        // Check if fire is detected and update fire locations
-        if (sensorData.isFireDetected &&
-            sensorData.latitude != null &&
-            sensorData.longitude != null) {
-          _updateFireLocations(sensorData);
-        }
-
         // Clear any previous errors
         _error = null;
         notifyListeners();
@@ -219,30 +217,6 @@ class FireDetectionProvider extends ChangeNotifier {
         _startPeriodicFetch();
         notifyListeners();
       }
-    }
-  }
-
-  void _updateFireLocations(SensorData sensorData) {
-    // Create a new fire location from sensor data
-    final newLocation = FireLocation(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      latitude: sensorData.latitude!,
-      longitude: sensorData.longitude!,
-      timestamp: sensorData.timestamp,
-      severity: sensorData.status,
-      temperature: sensorData.temperature,
-      humidity: sensorData.humidity,
-      gasLevel: sensorData.gasLevel,
-    );
-
-    // Add to locations if not already present
-    if (!_fireLocations.any(
-      (loc) =>
-          loc.latitude == newLocation.latitude &&
-          loc.longitude == newLocation.longitude,
-    )) {
-      _fireLocations.add(newLocation);
-      notifyListeners();
     }
   }
 
@@ -392,13 +366,6 @@ class FireDetectionProvider extends ChangeNotifier {
       if (_sensorHistory.length > 50) {
         _sensorHistory = _sensorHistory.sublist(0, 50);
       }
-    }
-
-    // Update fire locations if fire is detected
-    if (mockData.isFireDetected &&
-        mockData.latitude != null &&
-        mockData.longitude != null) {
-      _updateFireLocations(mockData);
     }
 
     _error = null;

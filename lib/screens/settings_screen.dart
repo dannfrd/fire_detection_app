@@ -21,8 +21,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _fireAlertsEnabled = true;
   bool _warningAlertsEnabled = true;
   bool _systemUpdatesEnabled = false;
-  bool _showMyLocationEnabled = true;
-  bool _autoRefreshMapEnabled = true;
 
   // Gas level thresholds
   double _warningThreshold = 1000;
@@ -52,8 +50,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _fireAlertsEnabled = _settingsProvider.fireAlertsEnabled;
       _warningAlertsEnabled = _settingsProvider.warningAlertsEnabled;
       _systemUpdatesEnabled = _settingsProvider.systemUpdatesEnabled;
-      _showMyLocationEnabled = _settingsProvider.showMyLocationEnabled;
-      _autoRefreshMapEnabled = _settingsProvider.autoRefreshMapEnabled;
       _warningThreshold = _settingsProvider.warningThreshold;
       _criticalThreshold = _settingsProvider.criticalThreshold;
       _temperatureThreshold = _settingsProvider.temperatureThreshold;
@@ -231,63 +227,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       value
                           ? 'System updates enabled'
                           : 'System updates disabled',
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Map Settings
-          _buildSectionHeader('Map Settings'),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.shadowColor,
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                _buildSwitchTile(
-                  'Show My Location',
-                  'Display your current location on the map',
-                  Icons.my_location_rounded,
-                  _showMyLocationEnabled,
-                  (value) {
-                    setState(() {
-                      _showMyLocationEnabled = value;
-                    });
-                    _saveMapSettings();
-                    _showSettingUpdatedSnackbar(
-                      value
-                          ? 'Location display enabled'
-                          : 'Location display disabled',
-                    );
-                  },
-                ),
-                const Divider(height: 1, indent: 70),
-                _buildSwitchTile(
-                  'Auto-refresh Map',
-                  'Automatically update map data',
-                  Icons.refresh_rounded,
-                  _autoRefreshMapEnabled,
-                  (value) {
-                    setState(() {
-                      _autoRefreshMapEnabled = value;
-                    });
-                    _saveMapSettings();
-                    _showSettingUpdatedSnackbar(
-                      value
-                          ? 'Map auto-refresh enabled'
-                          : 'Map auto-refresh disabled',
                     );
                   },
                 ),
@@ -741,17 +680,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       debugPrint('Notification settings saved successfully via provider');
     } catch (e) {
       debugPrint('Error saving notification settings: $e');
-    }
-  }
-
-  void _saveMapSettings() async {
-    try {
-      await _settingsProvider.setShowMyLocationEnabled(_showMyLocationEnabled);
-      await _settingsProvider.setAutoRefreshMapEnabled(_autoRefreshMapEnabled);
-
-      debugPrint('Map settings saved successfully via provider');
-    } catch (e) {
-      debugPrint('Error saving map settings: $e');
     }
   }
 

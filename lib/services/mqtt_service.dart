@@ -19,10 +19,13 @@ class MqttService {
   final String _humidityTopic = 'kelompok4/humidity';
   final String _gasTopic =
       'Tubes/kelompok4/gas'; // Updated to match Arduino code
-  final String _flameTopic = 'kelompok4/flame';
+  final String _flameTopic =
+      'Tubes/kelompok4/flame'; // Updated to match Arduino code
   final String _smokeTopic = 'kelompok4/smoke';
-  final String _apiTopic =
-      'Tubes/kelompok4/api'; // Updated to match Arduino code
+  final String _sensorStatusTopic =
+      'Tubes/kelompok4/sensor_status'; // New topic from Arduino
+  final String _controlStatusTopic =
+      'Tubes/Status'; // Control topic for remote activation
   final String _locationTopic = 'kelompok4/location';
 
   // Additional topics for wildcard subscription
@@ -46,7 +49,7 @@ class MqttService {
   bool _currentFlameDetected = false;
   double _currentTemperature = 25.0;
   double _currentHumidity = 60.0;
-  bool _apiFireDetected = false;
+  bool _systemActive = true; // System status from Arduino
 
   // Connect to MQTT broker
   Future<bool> connect() async {
@@ -117,22 +120,26 @@ class MqttService {
 
       // Subscribe to main kelompok topic and all subtopics
       _client!.subscribe(_kelompokTopic, MqttQos.atLeastOnce);
-      _client!.subscribe(_kelompokTopic + '/+',
-          MqttQos.atLeastOnce); // Wildcard for all subtopics
+      _client!.subscribe(
+        _kelompokTopic + '/+',
+        MqttQos.atLeastOnce,
+      ); // Wildcard for all subtopics
       print('Subscribed to main topic: $_kelompokTopic');
 
       // Subscribe to Tubes topics (from Arduino code)
       _client!.subscribe(_tubesBaseTopic, MqttQos.atLeastOnce);
-      _client!.subscribe(_tubesBaseTopic + '/+',
-          MqttQos.atLeastOnce); // Wildcard for all Tubes subtopics
+      _client!.subscribe(
+        _tubesBaseTopic + '/+',
+        MqttQos.atLeastOnce,
+      ); // Wildcard for all Tubes subtopics
       print('Subscribed to Tubes topic: $_tubesBaseTopic');
 
       // Individual topics
       _client!.subscribe(_gasTopic, MqttQos.atLeastOnce);
-      _client!.subscribe(_apiTopic, MqttQos.atLeastOnce);
+      _client!.subscribe(_flameTopic, MqttQos.atLeastOnce);
+      _client!.subscribe(_sensorStatusTopic, MqttQos.atLeastOnce);
       _client!.subscribe(_temperatureTopic, MqttQos.atLeastOnce);
       _client!.subscribe(_humidityTopic, MqttQos.atLeastOnce);
-      _client!.subscribe(_flameTopic, MqttQos.atLeastOnce);
       _client!.subscribe(_smokeTopic, MqttQos.atLeastOnce);
       _client!.subscribe(_locationTopic, MqttQos.atLeastOnce);
 
@@ -162,35 +169,33 @@ class MqttService {
 
   // Method untuk membuat SensorData terbaru dari semua nilai sensor
   void _emitCombinedSensorData() {
-    // Determine fire detection based on gas levels and API status
-    // Updated thresholds to match Arduino's raw sensor values
-    bool isHighGasLevel = _currentGasLevel != null && _currentGasLevel! > 1000;
+    // Determine fire detection based on gas levels and system status
+    // Updated thresholds to match Arduino's gas sensor values (3000 for danger)
+    bool isHighGasLevel = _currentGasLevel != null && _currentGasLevel! > 2000;
     bool isCriticalGasLevel =
-        _currentGasLevel != null && _currentGasLevel! > 2000;
+        _currentGasLevel != null && _currentGasLevel! > 3000;
 
     final sensorData = SensorData(
       id: DateTime.now().millisecondsSinceEpoch,
       timestamp: DateTime.now(),
       gasLevel: _currentGasLevel ?? 0, // Provide default to avoid null
-      smokeDetected:
-          _currentSmokeDetected || isHighGasLevel || _apiFireDetected,
-      flameDetected:
-          _currentFlameDetected || isCriticalGasLevel || _apiFireDetected,
+      smokeDetected: _currentSmokeDetected || isHighGasLevel,
+      flameDetected: _currentFlameDetected || isCriticalGasLevel,
       temperature: _currentTemperature,
       humidity: _currentHumidity,
       latitude:
           -7.12345, // You may want to update these with your actual location
       longitude: 110.12345,
-      aiAnalysis: _apiFireDetected ? "Api Terdeteksi" : null,
+      aiAnalysis: _currentFlameDetected ? "Api Terdeteksi" : null,
     );
 
     print('=== EMITTING SENSOR DATA ===');
+    print('System Active: $_systemActive');
     print('Gas Level: ${_currentGasLevel ?? "N/A"} ppm');
     print('Smoke Detected: ${sensorData.smokeDetected}');
     print('Flame Detected: ${sensorData.flameDetected}');
     print('Temperature: ${_currentTemperature}°C');
     print('Humidity: ${_currentHumidity}%');
-    print('API Fire Detection: $_apiFireDetected');
     print('============================');
 
     _sensorDataStreamController.add(sensorData);
@@ -207,7 +212,8 @@ class MqttService {
       try {
         if (message.payload is! MqttPublishMessage) {
           print(
-              'Received message with unexpected payload type: ${message.payload.runtimeType}');
+            'Received message with unexpected payload type: ${message.payload.runtimeType}',
+          );
           continue;
         }
 
@@ -215,8 +221,9 @@ class MqttService {
             message.payload as MqttPublishMessage;
         // Proceed with extracting the message
 
-        final String messageString =
-            MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+        final String messageString = MqttPublishPayload.bytesToStringAsString(
+          recMess.payload.message,
+        );
 
         print('Received message on topic: ${message.topic}');
         print('Message: $messageString');
@@ -231,10 +238,12 @@ class MqttService {
           final gasLevel = int.tryParse(messageString.trim());
           if (gasLevel != null) {
             print(
-                'Parsed gas level: $gasLevel ppm (current: $_currentGasLevel)');
+              'Parsed gas level: $gasLevel ppm (current: $_currentGasLevel)',
+            );
             if (gasLevel != _currentGasLevel) {
               print(
-                  'Gas level changed from $_currentGasLevel to $gasLevel ppm');
+                'Gas level changed from $_currentGasLevel to $gasLevel ppm',
+              );
               _currentGasLevel = gasLevel;
               shouldEmitUpdate = true;
             } else {
@@ -244,23 +253,23 @@ class MqttService {
             print('Failed to parse gas level from: $messageString');
           }
         }
-        // Handle API status from Tubes/kelompok4/api
-        else if (message.topic == _apiTopic) {
-          print('API status received: $messageString');
+        // Handle sensor status from Tubes/kelompok4/sensor_status
+        else if (message.topic == _sensorStatusTopic) {
+          print('Sensor status received: $messageString');
 
-          final wasFireDetected = _apiFireDetected;
-          // Check for "Api Terdeteksi" string from Arduino code
-          _apiFireDetected =
-              messageString.toLowerCase().contains('api terdeteksi');
+          final wasSystemActive = _systemActive;
+          // Check system status from Arduino
+          _systemActive = messageString.toLowerCase().contains('active');
 
-          if (_apiFireDetected != wasFireDetected) {
-            print('API fire detection changed: $_apiFireDetected');
+          if (_systemActive != wasSystemActive) {
+            print('System status changed: $_systemActive');
             shouldEmitUpdate = true;
           }
         }
         // Handle smoke sensor
         else if (message.topic == _smokeTopic) {
-          final smokeDetected = messageString.toLowerCase() == 'true' ||
+          final smokeDetected =
+              messageString.toLowerCase() == 'true' ||
               messageString.trim() == '1' ||
               messageString.toLowerCase().contains('detected');
           if (smokeDetected != _currentSmokeDetected) {
@@ -269,10 +278,12 @@ class MqttService {
             shouldEmitUpdate = true;
           }
         }
-        // Handle flame sensor
+        // Handle flame sensor - Updated to match Arduino code
         else if (message.topic == _flameTopic) {
-          final flameDetected = messageString.toLowerCase() == 'true' ||
-              messageString.trim() == '1' ||
+          print('Flame sensor message: $messageString');
+          // Arduino sends "FIRE DETECTED!" or "Safe"
+          final flameDetected =
+              messageString.toLowerCase().contains('fire detected') ||
               messageString.toLowerCase().contains('detected');
           if (flameDetected != _currentFlameDetected) {
             print('Flame detection changed: $flameDetected');
@@ -311,25 +322,17 @@ class MqttService {
               shouldEmitUpdate = true;
             }
 
-            if (jsonData.containsKey('api')) {
-              _apiFireDetected = jsonData['api']
-                  .toString()
-                  .toLowerCase()
-                  .contains('api terdeteksi');
-              shouldEmitUpdate = true;
-            }
-
             if (jsonData.containsKey('temperature')) {
               _currentTemperature =
                   double.tryParse(jsonData['temperature'].toString()) ??
-                      _currentTemperature;
+                  _currentTemperature;
               shouldEmitUpdate = true;
             }
 
             if (jsonData.containsKey('humidity')) {
               _currentHumidity =
                   double.tryParse(jsonData['humidity'].toString()) ??
-                      _currentHumidity;
+                  _currentHumidity;
               shouldEmitUpdate = true;
             }
           } catch (e) {
@@ -338,7 +341,7 @@ class MqttService {
         } else if ((message.topic.startsWith(_kelompokTopic) ||
                 message.topic.startsWith(_tubesBaseTopic)) &&
             message.topic != _gasTopic &&
-            message.topic != _apiTopic) {
+            message.topic != _sensorStatusTopic) {
           try {
             final Map<String, dynamic> data = jsonDecode(messageString);
 
@@ -437,6 +440,13 @@ class MqttService {
     } else {
       print('Cannot publish: MQTT client not connected');
     }
+  }
+
+  // Send control command to Arduino system
+  void sendControlCommand(bool activate) {
+    final command = activate ? "ACTIVE" : "INACTIVE";
+    publishMessage(_controlStatusTopic, command);
+    print('Sent control command: $command');
   }
 
   // Check connection status

@@ -129,7 +129,7 @@ class SafetyRulesWidget extends StatelessWidget {
         _buildRuleItem(
           '4. Kenali Jalur Evakuasi',
           'Pastikan semua orang mengetahui jalur evakuasi dan titik kumpul.',
-          Icons.map,
+          Icons.exit_to_app,
         ),
         _buildRuleItem(
           '5. Simpan Nomor Darurat',

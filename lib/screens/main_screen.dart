@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import 'dashboard_screen.dart';
 import 'history_screen.dart';
-import 'map_screen.dart';
 import 'settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -18,21 +17,14 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = [
     const DashboardScreen(),
-    const MapScreen(),
     const HistoryScreen(),
     const SettingsScreen(),
   ];
 
-  final List<String> _titles = [
-    'Dashboard',
-    'Map',
-    'History',
-    'Settings',
-  ];
+  final List<String> _titles = ['Dashboard', 'History', 'Settings'];
 
   final List<IconData> _icons = [
     Icons.dashboard_rounded,
-    Icons.map_rounded,
     Icons.history_rounded,
     Icons.settings_rounded,
   ];
@@ -62,7 +54,10 @@ class _MainScreenState extends State<MainScreen> {
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12.0,
+                  vertical: 12.0,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: List.generate(
@@ -80,7 +75,7 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildNavItem(int index) {
     final bool isSelected = _currentIndex == index;
-    
+
     return InkWell(
       onTap: () {
         setState(() {
