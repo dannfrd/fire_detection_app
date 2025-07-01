@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/settings_provider.dart';
 import '../screens/contact_support_screen.dart';
 import '../screens/privacy_policy_screen.dart';
 import '../screens/terms_of_service_screen.dart';
@@ -20,10 +22,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _showMyLocationEnabled = true;
   bool _autoRefreshMapEnabled = true;
 
+  // Gas level thresholds
+  double _warningThreshold = 1000;
+  double _criticalThreshold = 2000;
+  double _temperatureThreshold = 40;
+  
+  // Reference to the settings provider
+  late FireDetectionSettings _settingsProvider;
+
   @override
   void initState() {
     super.initState();
-    _loadSavedSettings();
+    // Settings will be loaded from the provider
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Get settings provider
+    _settingsProvider = Provider.of<FireDetectionSettings>(context);
+    // Update local state from provider
+    _updateLocalStateFromProvider();
+  }
+  
+  void _updateLocalStateFromProvider() {
+    setState(() {
+      _fireAlertsEnabled = _settingsProvider.fireAlertsEnabled;
+      _warningAlertsEnabled = _settingsProvider.warningAlertsEnabled;
+      _systemUpdatesEnabled = _settingsProvider.systemUpdatesEnabled;
+      _showMyLocationEnabled = _settingsProvider.showMyLocationEnabled;
+      _autoRefreshMapEnabled = _settingsProvider.autoRefreshMapEnabled;
+      _warningThreshold = _settingsProvider.warningThreshold;
+      _criticalThreshold = _settingsProvider.criticalThreshold;
+      _temperatureThreshold = _settingsProvider.temperatureThreshold;
+    });
   }
 
   @override
@@ -39,6 +71,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           // App Information Card
+          // Alert Thresholds Section
+          _buildSectionHeader('Alert Thresholds'),
+          _buildThresholdsCard(),
+          
+          const SizedBox(height: 20),
+          
           _buildSectionHeader('App Information'),
           Container(
             decoration: BoxDecoration(
@@ -95,6 +133,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded, 
+                        color: Colors.blue,
+                        size: 20,
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'This app helps detect and monitor potential fire risks in agricultural environments.',
+                          style: TextStyle(
+                            color: Colors.blue,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -394,32 +460,260 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // Helper methods for implementing the functionality
+  Widget _buildThresholdsCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.shadowColor,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Gas Level Thresholds',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                // Reset button
+                IconButton(
+                  onPressed: _resetThresholdSettings,
+                  icon: const Icon(Icons.refresh_rounded, size: 20),
+                  tooltip: 'Reset to default values',
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.grey.shade100,
+                    foregroundColor: AppTheme.textSecondary,
+                    padding: const EdgeInsets.all(8),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Adjust when alerts should be triggered based on gas level readings.',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Warning level slider
+            _buildLabeledSlider(
+              label: 'Warning Level',
+              value: _warningThreshold,
+              min: 500,
+              max: 1500,
+              divisions: 10,
+              activeColor: Colors.orange,
+              valueLabel: '${_warningThreshold.toInt()} ppm',
+              onChanged: (value) {
+                setState(() {
+                  _warningThreshold = value;
+                  // Ensure critical is always higher than warning
+                  if (_criticalThreshold < _warningThreshold + 300) {
+                    _criticalThreshold = _warningThreshold + 300;
+                  }
+                });
+              },
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Critical level slider
+            _buildLabeledSlider(
+              label: 'Critical Level',
+              value: _criticalThreshold,
+              min: 1500,
+              max: 3000,
+              divisions: 15,
+              activeColor: Colors.red,
+              valueLabel: '${_criticalThreshold.toInt()} ppm',
+              onChanged: (value) {
+                setState(() {
+                  _criticalThreshold = value;
+                });
+              },
+            ),
+            
+            const Divider(height: 32),
+            
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Temperature Threshold',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                // Info icon with tooltip
+                Tooltip(
+                  message: 'Temperature above this level may indicate fire risk',
+                  triggerMode: TooltipTriggerMode.tap,
+                  showDuration: const Duration(seconds: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryGreen.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  textStyle: const TextStyle(color: Colors.white),
+                  child: const Icon(
+                    Icons.info_outline_rounded,
+                    size: 20,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Temperature above this level may indicate fire risk.',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Temperature threshold slider
+            _buildLabeledSlider(
+              label: 'High Temperature',
+              value: _temperatureThreshold,
+              min: 30,
+              max: 60,
+              divisions: 30,
+              activeColor: Colors.deepOrange,
+              valueLabel: '${_temperatureThreshold.toInt()}°C',
+              onChanged: (value) {
+                setState(() {
+                  _temperatureThreshold = value;
+                });
+              },
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Save button
+            ElevatedButton(
+              onPressed: _saveThresholdSettings,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryGreen,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Save Threshold Settings',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLabeledSlider({
+    required String label,
+    required double value,
+    required double min,
+    required double max,
+    required int divisions,
+    required Color activeColor,
+    required String valueLabel,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: activeColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: activeColor.withOpacity(0.3)),
+              ),
+              child: Text(
+                valueLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: activeColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: activeColor,
+            inactiveTrackColor: activeColor.withOpacity(0.2),
+            thumbColor: activeColor,
+            overlayColor: activeColor.withOpacity(0.2),
+          ),
+          child: Slider(
+            value: value,
+            min: min,
+            max: max,
+            divisions: divisions,
+            label: valueLabel,
+            onChanged: onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+
   void _saveNotificationSettings() async {
-    // Here you would typically use shared preferences or another storage mechanism
-    // Example:
-    // final prefs = await SharedPreferences.getInstance();
-    // await prefs.setBool('fireAlertsEnabled', _fireAlertsEnabled);
-    // await prefs.setBool('warningAlertsEnabled', _warningAlertsEnabled);
-    // await prefs.setBool('systemUpdatesEnabled', _systemUpdatesEnabled);
-    
-    // For demonstration, we're just printing the values
-    debugPrint('Saving notification settings:');
-    debugPrint('Fire Alerts: $_fireAlertsEnabled');
-    debugPrint('Warning Alerts: $_warningAlertsEnabled');
-    debugPrint('System Updates: $_systemUpdatesEnabled');
+    try {
+      await _settingsProvider.setFireAlertsEnabled(_fireAlertsEnabled);
+      await _settingsProvider.setWarningAlertsEnabled(_warningAlertsEnabled);
+      await _settingsProvider.setSystemUpdatesEnabled(_systemUpdatesEnabled);
+      
+      debugPrint('Notification settings saved successfully via provider');
+    } catch (e) {
+      debugPrint('Error saving notification settings: $e');
+    }
   }
 
   void _saveMapSettings() async {
-    // Similar to notification settings, you would save these to persistent storage
-    // Example:
-    // final prefs = await SharedPreferences.getInstance();
-    // await prefs.setBool('showMyLocation', _showMyLocationEnabled);
-    // await prefs.setBool('autoRefreshMap', _autoRefreshMapEnabled);
-    
-    debugPrint('Saving map settings:');
-    debugPrint('Show My Location: $_showMyLocationEnabled');
-    debugPrint('Auto-refresh Map: $_autoRefreshMapEnabled');
+    try {
+      await _settingsProvider.setShowMyLocationEnabled(_showMyLocationEnabled);
+      await _settingsProvider.setAutoRefreshMapEnabled(_autoRefreshMapEnabled);
+      
+      debugPrint('Map settings saved successfully via provider');
+    } catch (e) {
+      debugPrint('Error saving map settings: $e');
+    }
   }
 
   void _showSettingUpdatedSnackbar(String message) {
@@ -441,20 +735,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _loadSavedSettings() async {
-    // Here you would typically load settings from shared preferences
-    // Example:
-    // final prefs = await SharedPreferences.getInstance();
-    // setState(() {
-    //   _fireAlertsEnabled = prefs.getBool('fireAlertsEnabled') ?? true;
-    //   _warningAlertsEnabled = prefs.getBool('warningAlertsEnabled') ?? true;
-    //   _systemUpdatesEnabled = prefs.getBool('systemUpdatesEnabled') ?? false;
-    //   _showMyLocationEnabled = prefs.getBool('showMyLocation') ?? true;
-    //   _autoRefreshMapEnabled = prefs.getBool('autoRefreshMap') ?? true;
-    // });
+  Future<void> _saveThresholdSettings() async {
+    try {
+      await _settingsProvider.setThresholds(
+        warningThreshold: _warningThreshold,
+        criticalThreshold: _criticalThreshold,
+        temperatureThreshold: _temperatureThreshold,
+      );
+      
+      debugPrint('Threshold settings saved successfully via provider');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Threshold settings saved'),
+          backgroundColor: AppTheme.primaryGreen,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error saving threshold settings: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to save settings: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _resetThresholdSettings() {
+    setState(() {
+      _warningThreshold = 1000.0;
+      _criticalThreshold = 2000.0;
+      _temperatureThreshold = 40.0;
+    });
     
-    // For now, we'll use the default values
-    // This is already done in the class field initialization
-    debugPrint('Settings loaded');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Threshold settings reset to default values'),
+        backgroundColor: AppTheme.primaryGreen,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/fire_detection_provider.dart';
+import 'providers/settings_provider.dart';
 import 'screens/splash_screen.dart';
 import 'utils/app_theme.dart';
 
@@ -33,8 +34,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => FireDetectionProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => FireDetectionProvider()),
+        ChangeNotifierProvider(create: (context) => FireDetectionSettings()),
+      ],
       child: MaterialApp(
         title: 'Agrotech Fire Detection',
         theme: AppTheme.lightTheme,
