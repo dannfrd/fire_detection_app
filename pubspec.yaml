@@ -42,10 +42,17 @@ dependencies:
   mqtt_client: ^10.10.0
   url_launcher: ^6.3.1
   shared_preferences: ^2.5.3
+  flutter_launcher_icons: ^0.14.4
+  
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/icon.png"
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
